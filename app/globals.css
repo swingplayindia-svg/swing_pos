@@ -1,0 +1,129 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #f8faf9;
+  --foreground: #0a0f0d;
+  --card: #ffffff;
+  --card-foreground: #0a0f0d;
+  --popover: #ffffff;
+  --popover-foreground: #0a0f0d;
+  --primary: #0d3d24;
+  --primary-foreground: #ffffff;
+  --primary-bright: #1a9d55;
+  --secondary: #eef2f0;
+  --secondary-foreground: #0a0f0d;
+  --muted: #eef2f0;
+  --muted-foreground: #5c6b63;
+  --accent: #e8f7ee;
+  --accent-foreground: #0d3d24;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #dce5e0;
+  --input: #dce5e0;
+  --ring: #1a9d55;
+  --chart-1: #0d3d24;
+  --chart-2: #166534;
+  --chart-3: #1a9d55;
+  --chart-4: #4ade80;
+  --chart-5: #86efac;
+  --radius: 0.625rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0a0f0d;
+  --sidebar-primary: #0d3d24;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8f7ee;
+  --sidebar-accent-foreground: #0d3d24;
+  --sidebar-border: #dce5e0;
+  --sidebar-ring: #1a9d55;
+  --shadow-premium: 0 4px 24px -4px rgb(13 61 36 / 0.12);
+  --shadow-card: 0 1px 3px rgb(13 61 36 / 0.06), 0 8px 24px -8px rgb(13 61 36 / 0.1);
+}
+
+.dark {
+  --background: #f8faf9;
+  --foreground: #0a0f0d;
+  --card: #ffffff;
+  --card-foreground: #0a0f0d;
+  --primary: #0d3d24;
+  --primary-foreground: #ffffff;
+  --accent: #e8f7ee;
+  --accent-foreground: #0d3d24;
+  --border: #dce5e0;
+  --muted: #eef2f0;
+  --muted-foreground: #5c6b63;
+}
+
+@theme inline {
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-display: var(--font-sora), var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgb(26 157 85 / 0.08), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, rgb(13 61 36 / 0.04), transparent);
+  }
+  .font-display {
+    font-family: var(--font-sora), var(--font-dm-sans), system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .shadow-premium {
+    box-shadow: var(--shadow-premium);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .surface-card {
+    @apply rounded-xl border border-border/80 bg-card shadow-card;
+  }
+  .btn-primary-glow {
+    @apply bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90 transition-all;
+  }
+}
