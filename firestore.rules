@@ -109,9 +109,5 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && isTurfOwner(resource.data.turfId);
     }
 
-    // Owner email OTP — server (Admin SDK) only
-    match /ownerLoginOtps/{email} {
-      allow read, write: if false;
-    }
   }
 }

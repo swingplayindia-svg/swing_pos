@@ -10,7 +10,7 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  loginWithCustomFirebaseToken,
+  loginWithFirebase,
   logoutFirebase,
   subscribeToFirebaseAuth,
 } from "@/lib/firebase-auth";
@@ -65,56 +65,13 @@ function useOwnerAuthState() {
     return unsub;
   }, [refreshTurfs]);
 
-  const sendOtp = async (
-    loginEmail: string,
-  ): Promise<{ ok: true; emailSent: boolean; devCode?: string } | { ok: false }> => {
+  const login = async (loginEmail: string, password: string) => {
     setError(null);
     try {
-      const res = await fetch("/api/owner/auth/send-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail }),
-      });
-      const data = (await res.json()) as {
-        error?: string;
-        emailSent?: boolean;
-        devCode?: string;
-      };
-      if (!res.ok) {
-        setError(data.error ?? "Could not send code.");
-        return { ok: false };
-      }
-      return {
-        ok: true,
-        emailSent: Boolean(data.emailSent),
-        devCode: data.devCode,
-      };
-    } catch {
-      setError("Could not send code. Check your connection.");
-      return { ok: false };
-    }
-  };
-
-  const verifyOtp = async (loginEmail: string, code: string) => {
-    setError(null);
-    try {
-      const res = await fetch("/api/owner/auth/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, code }),
-      });
-      const data = (await res.json()) as {
-        customToken?: string;
-        error?: string;
-      };
-      if (!res.ok || !data.customToken) {
-        setError(data.error ?? "Invalid code.");
-        return false;
-      }
-      await loginWithCustomFirebaseToken(data.customToken);
+      await loginWithFirebase(loginEmail, password);
       return true;
     } catch {
-      setError("Sign-in failed. Try again.");
+      setError("Invalid email or password.");
       return false;
     }
   };
@@ -135,8 +92,7 @@ function useOwnerAuthState() {
     isLoading,
     error,
     setError,
-    sendOtp,
-    verifyOtp,
+    login,
     logout,
     refreshTurfs,
     isAuthenticated: uid !== null,
