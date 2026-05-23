@@ -83,14 +83,14 @@ export default function BookTurfPage() {
 
       <main className="max-w-lg mx-auto px-4 mt-6">
         <p className="text-sm text-muted-foreground mb-4 text-center">
-          Pick a date and time, then pay securely with PhonePe.
+          Pick a date and time, then scan the UPI QR to pay.
         </p>
         <CustomerBookingForm turf={{ ...turf, id: turf.id ?? turfId }} />
       </main>
 
       <footer className="max-w-lg mx-auto px-4 mt-8 text-center">
         <p className="text-[11px] text-muted-foreground">
-          Powered by Swing Play · Secure payments via PhonePe
+          Powered by Swing Play · Pay via UPI
         </p>
       </footer>
     </div>
