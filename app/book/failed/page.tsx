@@ -9,6 +9,7 @@ import { XCircle } from "lucide-react";
 function BookingFailedContent() {
   const searchParams = useSearchParams();
   const reason = searchParams.get("reason");
+  const bookingId = searchParams.get("bookingId");
 
   const message =
     reason === "slot_taken"
@@ -26,6 +27,9 @@ function BookingFailedContent() {
         </h1>
         <p className="text-sm text-muted-foreground mt-2">{message}</p>
       </div>
+      {bookingId ? (
+        <p className="text-xs text-muted-foreground">Reference: {bookingId}</p>
+      ) : null}
       <Link href="/">
         <Button>Go home</Button>
       </Link>

@@ -1,4 +1,10 @@
-import { addHours, format, isWeekend } from "date-fns";
+import { addHours, format } from "date-fns";
+import {
+  isVenueWeekend,
+  venueDateKey,
+  venueDayOfWeek,
+  venueHHmm,
+} from "@/lib/venue-time";
 import type {
   TimeSlotPeriod,
   TurfOperatingSlot,
@@ -195,12 +201,12 @@ function rateFromPeriodOrBase(
   date: Date,
 ): number {
   if (period) {
-    const dateKey = format(date, "yyyy-MM-dd");
+    const dateKey = venueDateKey(date);
     if (period.dateRates?.[dateKey]) return period.dateRates[dateKey];
-    const dow = String(date.getDay()) as DayRateKey;
+    const dow = String(venueDayOfWeek(date)) as DayRateKey;
     if (period.dayRates?.[dow]) return period.dayRates[dow];
     if (period.weekday > 0 || period.weekend > 0) {
-      return isWeekend(date) ? period.weekend : period.weekday;
+      return isVenueWeekend(date) ? period.weekend : period.weekday;
     }
   }
   return hourlyRateForDate(base, date);
@@ -208,21 +214,21 @@ function rateFromPeriodOrBase(
 
 /** ₹/hr for a calendar date (priority: special date → day override → weekend/weekday). */
 export function hourlyRateForDate(pricing: TurfPricing, date: Date): number {
-  const dateKey = format(date, "yyyy-MM-dd");
+  const dateKey = venueDateKey(date);
   if (pricing.dateRates?.[dateKey]) return pricing.dateRates[dateKey];
 
-  const dow = String(date.getDay()) as DayRateKey;
+  const dow = String(venueDayOfWeek(date)) as DayRateKey;
   if (pricing.dayRates?.[dow]) return pricing.dayRates[dow];
 
-  return isWeekend(date) ? pricing.weekend : pricing.weekday;
+  return isVenueWeekend(date) ? pricing.weekend : pricing.weekday;
 }
 
 /** ₹/hr at a specific date-time (respects morning/evening period rates). */
 export function hourlyRateAt(pricing: TurfPricing, at: Date): number {
-  const dateKey = format(at, "yyyy-MM-dd");
+  const dateKey = venueDateKey(at);
   if (pricing.dateRates?.[dateKey]) return pricing.dateRates[dateKey];
 
-  const period = periodForClockTime(pricing, format(at, "HH:mm"));
+  const period = periodForClockTime(pricing, venueHHmm(at));
   if (period && pricing.periodPricing?.[period]) {
     return rateFromPeriodOrBase(pricing.periodPricing[period], pricing, at);
   }

@@ -1,56 +1,85 @@
 import { NextResponse } from "next/server";
 import {
+  cancelPendingCustomerBooking,
   confirmBookingPayment,
   getBookingById,
+  getBookingByPhonePeTxn,
   markBookingPaymentFailed,
 } from "@/lib/admin-bookings";
 import { getPhonePeOrderStatus } from "@/lib/phonepe";
+
+function canceledRedirect(
+  appUrl: string,
+  turfId: string,
+  bookingId: string,
+): NextResponse {
+  return NextResponse.redirect(
+    `${appUrl}/book/${turfId}/canceled?bookingId=${bookingId}`,
+  );
+}
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
-  const bookingId = url.searchParams.get("bookingId") ?? "";
+  const bookingIdParam = url.searchParams.get("bookingId") ?? "";
   let merchantOrderId =
     url.searchParams.get("merchantTransactionId") ??
     url.searchParams.get("merchantOrderId") ??
     "";
 
-  if (!merchantOrderId && bookingId) {
-    const booking = await getBookingById(bookingId);
-    merchantOrderId = booking?.phonePeTransactionId ?? "";
+  let booking = bookingIdParam ? await getBookingById(bookingIdParam) : null;
+
+  if (!merchantOrderId && booking?.phonePeTransactionId) {
+    merchantOrderId = booking.phonePeTransactionId;
+  }
+  if (!booking && merchantOrderId) {
+    booking = await getBookingByPhonePeTxn(merchantOrderId);
   }
 
-  if (!merchantOrderId) {
+  if (!booking && !merchantOrderId) {
     return NextResponse.redirect(`${appUrl}/book/failed?reason=invalid`);
+  }
+
+  const goCanceled = async (): Promise<NextResponse> => {
+    if (booking) {
+      await cancelPendingCustomerBooking(booking.id);
+      return canceledRedirect(appUrl, booking.turfId, booking.id);
+    }
+    if (merchantOrderId) {
+      await markBookingPaymentFailed(merchantOrderId);
+      const b = await getBookingByPhonePeTxn(merchantOrderId);
+      if (b) return canceledRedirect(appUrl, b.turfId, b.id);
+    }
+    return NextResponse.redirect(`${appUrl}/book/failed?reason=payment`);
+  };
+
+  if (!merchantOrderId) {
+    return goCanceled();
   }
 
   try {
     const order = await getPhonePeOrderStatus(merchantOrderId);
 
     if (order.state === "COMPLETED") {
-      const booking = await confirmBookingPayment(merchantOrderId);
-      if (booking) {
+      const confirmed = await confirmBookingPayment(merchantOrderId);
+      if (confirmed) {
         return NextResponse.redirect(
-          `${appUrl}/book/${booking.turfId}/success?bookingId=${booking.id}`,
+          `${appUrl}/book/${confirmed.turfId}/success?bookingId=${confirmed.id}`,
         );
       }
-    } else if (order.state === "FAILED") {
-      await markBookingPaymentFailed(merchantOrderId);
-    } else if (bookingId) {
-      const booking = await getBookingById(bookingId);
-      if (booking?.paymentStatus === "paid") {
-        return NextResponse.redirect(
-          `${appUrl}/book/${booking.turfId}/success?bookingId=${booking.id}`,
-        );
-      }
+      return goCanceled();
     }
+
+    if (order.state === "FAILED") {
+      await markBookingPaymentFailed(merchantOrderId);
+      return goCanceled();
+    }
+
+    // PENDING / abandoned checkout — customer canceled or closed PhonePe
+    return goCanceled();
   } catch (err) {
     console.error("PhonePe callback:", err);
+    return goCanceled();
   }
-
-  const failQuery = bookingId ? `&bookingId=${bookingId}` : "";
-  return NextResponse.redirect(
-    `${appUrl}/book/failed?reason=payment${failQuery}`,
-  );
 }

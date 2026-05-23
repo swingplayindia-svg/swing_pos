@@ -1,11 +1,4 @@
-import {
-  addDays,
-  addHours,
-  format,
-  parseISO,
-  setHours,
-  setMinutes,
-} from "date-fns";
+import { addHours, parseISO } from "date-fns";
 import {
   calculateBookingAmount as calcAmount,
   getActiveOperatingSlots,
@@ -15,6 +8,12 @@ import {
 } from "@/lib/turf-pricing";
 import type { Turf } from "@/lib/turf-schema";
 import type { TurfBooking, TurfClosure } from "@/lib/turf-owner-schema";
+import {
+  venueDateKey,
+  venueFormatTime,
+  venueHHmm,
+  venueLocalToUtc,
+} from "@/lib/venue-time";
 
 export type TimeSlot = {
   id: string;
@@ -24,11 +23,6 @@ export type TimeSlot = {
   available: boolean;
   reason?: string;
 };
-
-const BLOCKING_STATUSES = new Set<TurfBooking["status"]>([
-  "pending",
-  "confirmed",
-]);
 
 /** Pending unpaid bookings expire after 15 minutes to free the slot. */
 const PENDING_HOLD_MS = 15 * 60 * 1000;
@@ -44,38 +38,33 @@ export function isBookingBlockingSlot(booking: TurfBooking, now = Date.now()): b
   return false;
 }
 
-function parseTimeOnDate(date: Date, hhmm: string): Date {
-  const [h, m] = hhmm.split(":").map(Number);
-  return setMinutes(setHours(date, h ?? 0), m ?? 0);
-}
-
 function minutesFromMidnight(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return (h ?? 0) * 60 + (m ?? 0);
 }
 
-/** Handles midnight close (00:00) and venues open past midnight. */
+/** Operating window for one venue-local calendar day (IST). */
 function resolveOperatingWindow(
-  date: Date,
+  dateKey: string,
   openTime: string,
   closeTime: string,
   open24: boolean,
 ): { dayStart: Date; dayEnd: Date } {
   if (open24) {
+    const dayStart = venueLocalToUtc(dateKey, "00:00");
     return {
-      dayStart: parseTimeOnDate(date, "00:00"),
-      dayEnd: addDays(parseTimeOnDate(date, "00:00"), 1),
+      dayStart,
+      dayEnd: new Date(dayStart.getTime() + 24 * 60 * 60 * 1000),
     };
   }
 
-  const dayStart = parseTimeOnDate(date, openTime);
-  let dayEnd = parseTimeOnDate(date, closeTime);
+  const dayStart = venueLocalToUtc(dateKey, openTime);
+  let dayEnd = venueLocalToUtc(dateKey, closeTime);
   const openMin = minutesFromMidnight(openTime);
   const closeMin = minutesFromMidnight(closeTime);
 
-  // e.g. 05:00–00:00 means until end of day (midnight next morning)
   if (closeMin === 0 || closeMin <= openMin) {
-    dayEnd = addDays(dayEnd, 1);
+    dayEnd = new Date(dayEnd.getTime() + 24 * 60 * 60 * 1000);
   }
 
   return { dayStart, dayEnd };
@@ -112,15 +101,14 @@ export function isWithinOperatingHours(
   if (usesPeriodSlots(turf.pricing)) {
     let cursor = startAt;
     while (cursor < endAt) {
-      const hhmm = format(cursor, "HH:mm");
-      if (!periodForClockTime(turf.pricing, hhmm)) return false;
+      if (!periodForClockTime(turf.pricing, venueHHmm(cursor))) return false;
       cursor = addHours(cursor, 1);
     }
     return true;
   }
 
   const { dayStart, dayEnd } = resolveOperatingWindow(
-    startAt,
+    venueDateKey(startAt),
     turf.open_time,
     turf.close_time,
     false,
@@ -161,12 +149,11 @@ export function isRangeAvailable(
 
 function generateSlotsForWindow(
   turf: Turf,
-  date: Date,
+  dateKey: string,
   dayStart: Date,
   dayEnd: Date,
   bookings: TurfBooking[],
   closures: TurfClosure[],
-  dateKey: string,
   maxHours: number,
   slots: TimeSlot[],
   now: Date,
@@ -209,7 +196,7 @@ function generateSlotsForWindow(
       id: startAt,
       startAt,
       endAt,
-      label: format(cursor, "h:mm a"),
+      label: venueFormatTime(cursor),
       available,
       reason,
     });
@@ -220,12 +207,11 @@ function generateSlotsForWindow(
 
 export function generateDaySlots(
   turf: Turf,
-  date: Date,
+  dateKey: string,
   bookings: TurfBooking[],
   closures: TurfClosure[],
   maxHours = 4,
 ): TimeSlot[] {
-  const dateKey = format(date, "yyyy-MM-dd");
   if (closures.some((c) => c.date === dateKey)) {
     return [];
   }
@@ -236,19 +222,18 @@ export function generateDaySlots(
   if (usesPeriodSlots(turf.pricing)) {
     for (const opSlot of getActiveOperatingSlots(turf.pricing)) {
       const { dayStart, dayEnd } = resolveOperatingWindow(
-        date,
+        dateKey,
         opSlot.start,
         opSlot.end,
         false,
       );
       generateSlotsForWindow(
         turf,
-        date,
+        dateKey,
         dayStart,
         dayEnd,
         bookings,
         closures,
-        dateKey,
         maxHours,
         slots,
         now,
@@ -262,19 +247,18 @@ export function generateDaySlots(
   }
 
   const { dayStart, dayEnd } = resolveOperatingWindow(
-    date,
+    dateKey,
     turf.open_time,
     turf.close_time,
     turf.open_24_hours,
   );
   generateSlotsForWindow(
     turf,
-    date,
+    dateKey,
     dayStart,
     dayEnd,
     bookings,
     closures,
-    dateKey,
     maxHours,
     slots,
     now,

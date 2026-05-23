@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { venueFormatTime, venueHHmm } from "@/lib/venue-time";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -138,8 +139,10 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
     const evening: TimeSlot[] = [];
     const other: TimeSlot[] = [];
     for (const slot of slots) {
-      const hhmm = format(parseISO(slot.startAt), "HH:mm");
-      const period = periodForClockTime(turf.pricing, hhmm);
+      const period = periodForClockTime(
+        turf.pricing,
+        venueHHmm(parseISO(slot.startAt)),
+      );
       if (period === "morning") morning.push(slot);
       else if (period === "evening") evening.push(slot);
       else other.push(slot);
@@ -186,9 +189,23 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
           sport,
         }),
       });
-      const reserveData = await reserveRes.json();
+      const reserveData = (await reserveRes.json()) as {
+        bookingId?: string;
+        amountInr?: number;
+        error?: string;
+      };
       if (!reserveRes.ok) {
         throw new Error(reserveData.error ?? "Could not reserve slot.");
+      }
+
+      if (
+        typeof reserveData.amountInr === "number" &&
+        reserveData.amountInr !== amount
+      ) {
+        console.warn(
+          "[booking] amount sync",
+          { ui: amount, server: reserveData.amountInr },
+        );
       }
 
       const payRes = await fetch("/api/payments/phonepe/initiate", {
@@ -370,7 +387,8 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
           {selectedSlot && (
             <div className="rounded-lg bg-accent/60 border border-primary/10 px-3 py-2.5 text-sm">
               <p className="font-medium text-foreground">
-                {format(parseISO(selectedSlot.startAt), "EEE, d MMM · h:mm a")}
+                {format(parseISO(selectedSlot.startAt), "EEE, d MMM")} ·{" "}
+                {venueFormatTime(parseISO(selectedSlot.startAt))}
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Ends at{" "}

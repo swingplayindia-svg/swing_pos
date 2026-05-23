@@ -1,4 +1,5 @@
-import { addHours, format, parseISO } from "date-fns";
+import { addHours, parseISO } from "date-fns";
+import { venueDateKey, venueDayEndExclusive, venueLocalToUtc } from "@/lib/venue-time";
 import { getAdminDb } from "@/lib/firebase-admin";
 import {
   calculateBookingAmount,
@@ -58,6 +59,19 @@ export async function getClosuresForTurfAdmin(
   );
 }
 
+export async function updateBookingAmountInr(
+  bookingId: string,
+  amountInr: number,
+): Promise<void> {
+  await getAdminDb()
+    .collection(BOOKINGS)
+    .doc(bookingId)
+    .update({
+      amountInr,
+      updatedAt: new Date().toISOString(),
+    });
+}
+
 export async function getBookingById(
   bookingId: string,
 ): Promise<TurfBooking | null> {
@@ -96,10 +110,10 @@ export async function reserveCustomerBooking(
 
   const start = parseISO(input.startAt);
   const end = addHours(start, input.hours);
-  const dateKey = format(start, "yyyy-MM-dd");
+  const dateKey = venueDateKey(start);
 
-  const dayStart = new Date(`${dateKey}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateKey}T23:59:59.999Z`);
+  const dayStart = venueLocalToUtc(dateKey, "00:00");
+  const dayEnd = venueDayEndExclusive(dateKey);
 
   const [bookings, closures] = await Promise.all([
     getBookingsForTurfAdmin(input.turfId, dayStart.toISOString(), dayEnd.toISOString()),
@@ -156,9 +170,9 @@ export async function confirmBookingPayment(
 
   const start = parseISO(booking.startAt);
   const end = parseISO(booking.endAt);
-  const dateKey = format(start, "yyyy-MM-dd");
-  const dayStart = new Date(`${dateKey}T00:00:00.000Z`);
-  const dayEnd = new Date(`${dateKey}T23:59:59.999Z`);
+  const dateKey = venueDateKey(start);
+  const dayStart = venueLocalToUtc(dateKey, "00:00");
+  const dayEnd = venueDayEndExclusive(dateKey);
 
   const bookings = await getBookingsForTurfAdmin(
     booking.turfId,
@@ -200,17 +214,40 @@ export async function confirmBookingPayment(
   return { ...booking, paymentStatus: "paid", status: "confirmed", updatedAt: now };
 }
 
+/** Release a pending unpaid booking after payment cancel / failure. */
+export async function cancelPendingCustomerBooking(
+  bookingId: string,
+): Promise<TurfBooking | null> {
+  const booking = await getBookingById(bookingId);
+  if (!booking) return null;
+  if (booking.paymentStatus === "paid") return booking;
+  if (booking.status === "cancelled") return booking;
+
+  const now = new Date().toISOString();
+  const notes =
+    booking.notes?.trim() || "Payment canceled — slot released.";
+  await getAdminDb()
+    .collection(BOOKINGS)
+    .doc(bookingId)
+    .update({
+      paymentStatus: "failed",
+      status: "cancelled",
+      notes,
+      updatedAt: now,
+    });
+  return {
+    ...booking,
+    paymentStatus: "failed",
+    status: "cancelled",
+    notes,
+    updatedAt: now,
+  };
+}
+
 export async function markBookingPaymentFailed(
   merchantTransactionId: string,
 ): Promise<void> {
   const booking = await getBookingByPhonePeTxn(merchantTransactionId);
-  if (!booking || booking.paymentStatus === "paid") return;
-  await getAdminDb()
-    .collection(BOOKINGS)
-    .doc(booking.id)
-    .update({
-      paymentStatus: "failed",
-      status: "cancelled",
-      updatedAt: new Date().toISOString(),
-    });
+  if (!booking) return;
+  await cancelPendingCustomerBooking(booking.id);
 }
