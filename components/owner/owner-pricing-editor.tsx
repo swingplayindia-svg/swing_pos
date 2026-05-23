@@ -88,20 +88,32 @@ export function OwnerPricingEditor({
               type="number"
               min={1}
               value={form.weekend}
-              onChange={(e) => onChange({ weekend: e.target.value })}
-              placeholder="Sat–Sun"
+              onChange={(e) => {
+                const weekend = e.target.value;
+                onChange(
+                  hideBaseRates
+                    ? {
+                        weekend,
+                        morningWeekend: weekend,
+                        eveningWeekend: weekend,
+                      }
+                    : { weekend },
+                );
+              }}
+              placeholder="Fri–Sun"
               className={inputClass}
             />
           </div>
-          <p className="text-[11px] text-muted-foreground">Sat–Sun fallback</p>
+          <p className="text-[11px] text-muted-foreground">Fri–Sun fallback</p>
         </div>
       </div>
       )}
 
       {hideBaseRates && (
         <p className="text-xs text-muted-foreground rounded-lg border border-dashed border-border px-3 py-2">
-          Base weekday/weekend below are used only when a morning or evening
-          rate is left blank.
+          <strong>Fri–Sun</strong> uses the fallback weekend rate below (₹/hr)
+          unless you set a different morning/evening weekend price.{" "}
+          <strong>Mon–Thu</strong> uses morning/evening weekday rates.
         </p>
       )}
 

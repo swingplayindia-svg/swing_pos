@@ -32,10 +32,14 @@ export function venueDayOfWeek(instant: Date): number {
   return shiftedFromUtc(instant).getUTCDay();
 }
 
+/** Weekend = Friday, Saturday, Sunday (venue policy). Mon–Thu = weekday. */
 export function isVenueWeekend(instant: Date): boolean {
   const dow = venueDayOfWeek(instant);
-  return dow === 0 || dow === 6;
+  return dow === 0 || dow === 5 || dow === 6;
 }
+
+export const VENUE_WEEKDAY_LABEL = "Mon–Thu";
+export const VENUE_WEEKEND_LABEL = "Fri–Sun";
 
 /** End of venue calendar day (exclusive) for booking queries. */
 export function venueDayEndExclusive(dateKey: string): Date {

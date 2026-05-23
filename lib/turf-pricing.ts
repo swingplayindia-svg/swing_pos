@@ -1,6 +1,8 @@
 import { addHours, format } from "date-fns";
 import {
   isVenueWeekend,
+  VENUE_WEEKDAY_LABEL,
+  VENUE_WEEKEND_LABEL,
   venueDateKey,
   venueDayOfWeek,
   venueHHmm,
@@ -195,21 +197,55 @@ export function periodForClockTime(
   return null;
 }
 
-function rateFromPeriodOrBase(
-  period: TurfPeriodPricing | undefined,
+/** Period has its own Fri–Sun rate (different from base weekday). */
+function hasDistinctPeriodWeekend(
+  period: TurfPeriodPricing,
   base: TurfPricing,
-  date: Date,
-): number {
-  if (period) {
-    const dateKey = venueDateKey(date);
-    if (period.dateRates?.[dateKey]) return period.dateRates[dateKey];
-    const dow = String(venueDayOfWeek(date)) as DayRateKey;
-    if (period.dayRates?.[dow]) return period.dayRates[dow];
-    if (period.weekday > 0 || period.weekend > 0) {
-      return isVenueWeekend(date) ? period.weekend : period.weekday;
+): boolean {
+  return period.weekend > 0 && period.weekend !== base.weekday;
+}
+
+/** ₹/hr from one morning/evening rate card. */
+export function periodRateAt(period: TurfPeriodPricing, date: Date): number {
+  const dateKey = venueDateKey(date);
+  if (period.dateRates?.[dateKey]) return period.dateRates[dateKey];
+  const dow = String(venueDayOfWeek(date)) as DayRateKey;
+  if (period.dayRates?.[dow]) return period.dayRates[dow];
+  return isVenueWeekend(date) ? period.weekend : period.weekday;
+}
+
+function activePeriodPricing(
+  pricing: TurfPricing,
+  at: Date,
+): TurfPeriodPricing | undefined {
+  const hhmm = venueHHmm(at);
+  const key = periodForClockTime(pricing, hhmm);
+  if (key && pricing.periodPricing?.[key]) return pricing.periodPricing[key];
+  const min = minutesFromMidnight(hhmm);
+  const guess: TimeSlotPeriod =
+    min < minutesFromMidnight("16:00") ? "morning" : "evening";
+  return (
+    pricing.periodPricing?.[guess] ??
+    pricing.periodPricing?.morning ??
+    pricing.periodPricing?.evening
+  );
+}
+
+/** When period slots are on: Mon–Thu → period weekday; Fri–Sun → base weekend unless period weekend is custom. */
+function resolvePeriodSlotRate(pricing: TurfPricing, at: Date): number {
+  const period = activePeriodPricing(pricing, at);
+
+  if (isVenueWeekend(at)) {
+    if (period && hasDistinctPeriodWeekend(period, pricing)) {
+      return periodRateAt(period, at);
     }
+    if (pricing.weekend > 0) return pricing.weekend;
+    if (period) return periodRateAt(period, at);
+    return pricing.weekend || pricing.weekday;
   }
-  return hourlyRateForDate(base, date);
+
+  if (period) return periodRateAt(period, at);
+  return hourlyRateForDate(pricing, at);
 }
 
 /** ₹/hr for a calendar date (priority: special date → day override → weekend/weekday). */
@@ -228,9 +264,13 @@ export function hourlyRateAt(pricing: TurfPricing, at: Date): number {
   const dateKey = venueDateKey(at);
   if (pricing.dateRates?.[dateKey]) return pricing.dateRates[dateKey];
 
+  if (usesPeriodSlots(pricing)) {
+    return resolvePeriodSlotRate(pricing, at);
+  }
+
   const period = periodForClockTime(pricing, venueHHmm(at));
   if (period && pricing.periodPricing?.[period]) {
-    return rateFromPeriodOrBase(pricing.periodPricing[period], pricing, at);
+    return periodRateAt(pricing.periodPricing[period], at);
   }
 
   return hourlyRateForDate(pricing, at);
@@ -291,15 +331,27 @@ export function formatPricingSummary(pricing: TurfPricing): string {
     const m = pricing.periodPricing?.morning;
     const e = pricing.periodPricing?.evening;
     const parts: string[] = [];
-    if (m) parts.push(`Morning ₹${m.weekday}/₹${m.weekend}`);
-    if (e) parts.push(`Evening ₹${e.weekday}/₹${e.weekend}`);
-    const base = parts.length > 0 ? parts.join(" · ") : `₹${pricing.weekday}/hr`;
+    if (m) {
+      parts.push(
+        `Morning ₹${m.weekday}/hr (${VENUE_WEEKDAY_LABEL}) · ₹${m.weekend}/hr (${VENUE_WEEKEND_LABEL})`,
+      );
+    }
+    if (e) {
+      parts.push(
+        `Evening ₹${e.weekday}/hr (${VENUE_WEEKDAY_LABEL}) · ₹${e.weekend}/hr (${VENUE_WEEKEND_LABEL})`,
+      );
+    }
+    if (pricing.weekend > 0) {
+      parts.push(`Fri–Sun default ₹${pricing.weekend}/hr`);
+    }
+    const base =
+      parts.length > 0 ? parts.join(" · ") : "Period rates not configured";
     if (pricing.dateRates && Object.keys(pricing.dateRates).length > 0) {
       return `${base} · special dates may apply`;
     }
     return base;
   }
-  const base = `₹${pricing.weekday}/hr (Mon–Fri) · ₹${pricing.weekend}/hr (Sat–Sun)`;
+  const base = `₹${pricing.weekday}/hr (${VENUE_WEEKDAY_LABEL}) · ₹${pricing.weekend}/hr (${VENUE_WEEKEND_LABEL})`;
   if (!hasCustomPricing(pricing)) return base;
   return `${base} · custom day/date rates may apply`;
 }

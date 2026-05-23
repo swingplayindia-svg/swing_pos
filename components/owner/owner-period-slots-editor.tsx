@@ -83,7 +83,7 @@ function PeriodPricingBlock({
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Weekday ₹/hr</label>
+          <label className="text-xs font-medium">Mon–Thu ₹/hr</label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary pointer-events-none" />
             <Input
@@ -96,7 +96,7 @@ function PeriodPricingBlock({
           </div>
         </div>
         <div className="space-y-1.5">
-          <label className="text-xs font-medium">Weekend ₹/hr</label>
+          <label className="text-xs font-medium">Fri–Sun ₹/hr</label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-primary pointer-events-none" />
             <Input
