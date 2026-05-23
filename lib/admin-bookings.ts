@@ -1,4 +1,5 @@
 import { addHours, parseISO } from "date-fns";
+import { notifyOwnerOfNewBooking } from "@/lib/notify-owner-new-booking";
 import { venueDateKey, venueDayEndExclusive, venueLocalToUtc } from "@/lib/venue-time";
 import { getAdminDb } from "@/lib/firebase-admin";
 import {
@@ -172,6 +173,11 @@ export async function reserveCustomerBooking(
   };
 
   await ref.set(booking);
+
+  void notifyOwnerOfNewBooking(turf, booking).catch((err) => {
+    console.error("[reserve] owner email failed", err);
+  });
+
   return booking;
 }
 
