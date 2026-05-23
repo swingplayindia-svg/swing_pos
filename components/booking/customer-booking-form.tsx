@@ -14,6 +14,7 @@ import {
 } from "@/lib/turf-pricing";
 import { SPORTS_OPTIONS, type TurfPricing } from "@/lib/turf-schema";
 import type { TimeSlot } from "@/lib/booking-slots";
+import { isInAppBrowser, isMobileDevice } from "@/lib/in-app-browser";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -102,6 +103,8 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState("");
   const [paying, setPaying] = useState(false);
+  const inAppBrowser = isInAppBrowser();
+  const onMobile = isMobileDevice();
 
   const sports = turf.sports.length > 0 ? turf.sports : [...SPORTS_OPTIONS];
   const hasPeriodSlots = usesPeriodSlots(turf.pricing);
@@ -211,14 +214,31 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
       const payRes = await fetch("/api/payments/phonepe/initiate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bookingId: reserveData.bookingId }),
+        body: JSON.stringify({
+          bookingId: reserveData.bookingId,
+          returnOrigin: window.location.origin,
+        }),
       });
       const payData = await payRes.json();
       if (!payRes.ok) {
         throw new Error(payData.error ?? "Could not start payment.");
       }
 
-      window.location.href = payData.redirectUrl;
+      if (!payData.redirectUrl) {
+        throw new Error("PhonePe did not return a checkout URL.");
+      }
+
+      if (inAppBrowser) {
+        const proceed = window.confirm(
+          "Payments often fail inside Instagram/WhatsApp browsers.\n\nOpen this page in Chrome or Safari for UPI.\n\nContinue to PhonePe anyway?",
+        );
+        if (!proceed) {
+          setPaying(false);
+          return;
+        }
+      }
+
+      window.location.replace(payData.redirectUrl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Booking failed.");
       setPaying(false);
@@ -404,6 +424,26 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
           )}
         </div>
       </section>
+
+      {(inAppBrowser || onMobile) && (
+        <p className="text-xs text-muted-foreground rounded-xl border border-border/80 bg-muted/40 px-4 py-3 leading-relaxed">
+          {inAppBrowser ? (
+            <>
+              <strong className="text-foreground">Tip:</strong> Open this link in
+              Chrome or Safari. In-app browsers (Instagram, WhatsApp) often block
+              UPI.
+            </>
+          ) : (
+            <>
+              On the PhonePe page, if it stays on &quot;Opening your payment
+              app…&quot;, choose <strong className="text-foreground">Pay by UPI ID</strong>
+              , <strong className="text-foreground">Card</strong>, or{" "}
+              <strong className="text-foreground">Net Banking</strong> instead of
+              waiting for the app to open.
+            </>
+          )}
+        </p>
+      )}
 
       {error && (
         <p

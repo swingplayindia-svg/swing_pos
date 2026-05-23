@@ -147,7 +147,9 @@ export async function createPhonePePayment(params: {
   bookingId?: string;
 }): Promise<PhonePeInitResult> {
   if (isPhonePeMock()) {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+    const appUrl =
+      envUrl && !envUrl.includes("localhost") ? envUrl : "http://localhost:3000";
     return {
       redirectUrl: `${appUrl}/api/payments/phonepe/mock-confirm?merchantTransactionId=${encodeURIComponent(params.merchantTransactionId)}`,
       merchantTransactionId: params.merchantTransactionId,
@@ -157,7 +159,10 @@ export async function createPhonePePayment(params: {
 
   requireV2Credentials();
 
-  const body = {
+  const phone =
+    params.mobileNumber?.replace(/\D/g, "").slice(-10) ?? "";
+
+  const body: Record<string, unknown> = {
     merchantOrderId: params.merchantTransactionId,
     amount: params.amountPaise,
     expireAfter: 900,
@@ -167,12 +172,25 @@ export async function createPhonePePayment(params: {
       merchantUrls: {
         redirectUrl: params.redirectUrl,
       },
+      // UPI Collect/QR + cards + net banking — avoids getting stuck on "Opening payment app…"
+      paymentModeConfig: {
+        version: "V2",
+        enabledPaymentModes: [
+          { type: "UPI", flows: ["INTENT", "COLLECT", "QR"] },
+          { type: "CARD" },
+          { type: "NET_BANKING" },
+        ],
+      },
     },
     metaInfo: {
       udf1: params.bookingId ?? "",
       udf2: params.mobileNumber ?? "",
     },
   };
+
+  if (phone.length === 10) {
+    body.prefillUserLoginDetails = { phoneNumber: `+91${phone}` };
+  }
 
   const res = await fetch(`${checkoutBase()}/checkout/v2/pay`, {
     method: "POST",

@@ -6,6 +6,7 @@ import {
   getBookingByPhonePeTxn,
   markBookingPaymentFailed,
 } from "@/lib/admin-bookings";
+import { resolvePaymentAppUrl } from "@/lib/app-url";
 import { getPhonePeOrderStatus } from "@/lib/phonepe";
 
 function canceledRedirect(
@@ -20,7 +21,7 @@ function canceledRedirect(
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = resolvePaymentAppUrl(request);
 
   const bookingIdParam = url.searchParams.get("bookingId") ?? "";
   let merchantOrderId =

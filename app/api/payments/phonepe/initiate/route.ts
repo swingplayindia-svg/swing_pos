@@ -6,11 +6,16 @@ import {
   updateBookingAmountInr,
 } from "@/lib/admin-bookings";
 import { calculateBookingAmount } from "@/lib/booking-slots";
+import { resolvePaymentAppUrl } from "@/lib/app-url";
 import { createPhonePePayment } from "@/lib/phonepe";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { bookingId?: string };
+    const body = (await request.json()) as {
+      bookingId?: string;
+      /** Browser origin, e.g. https://swing-pos.vercel.app — avoids localhost in PhonePe redirect */
+      returnOrigin?: string;
+    };
     if (!body.bookingId) {
       return NextResponse.json({ error: "bookingId required." }, { status: 400 });
     }
@@ -51,7 +56,7 @@ export async function POST(request: Request) {
       await updateBookingAmountInr(booking.id, amountInr);
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const appUrl = resolvePaymentAppUrl(request, body.returnOrigin);
     const merchantTransactionId =
       booking.phonePeTransactionId ?? `SWING_${booking.id}`;
 

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { confirmBookingPayment } from "@/lib/admin-bookings";
+import { resolvePaymentAppUrl } from "@/lib/app-url";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const merchantTransactionId = url.searchParams.get("merchantTransactionId");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = resolvePaymentAppUrl(request);
 
   if (!merchantTransactionId) {
     return NextResponse.redirect(`${appUrl}/book/failed?reason=invalid`);
