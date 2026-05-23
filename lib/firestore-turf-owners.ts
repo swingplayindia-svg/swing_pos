@@ -11,6 +11,7 @@ import { getDb } from "@/lib/firebase";
 import { requireFirebaseUser } from "@/lib/firebase-auth";
 import { fetchTurfByIdFromFirestore } from "@/lib/firestore-turfs";
 import type { TurfOwnerProfile } from "@/lib/turf-owner-schema";
+import { ownerIdsInclude } from "@/lib/owner-ids";
 import { normalizeTurf, type Turf } from "@/lib/turf-schema";
 
 const TURFS_COLLECTION = "turfs";
@@ -22,7 +23,7 @@ async function assertAuth(): Promise<string> {
 }
 
 export function turfAllowsOwner(turf: Turf, uid: string): boolean {
-  return Boolean(turf.ownerIds?.includes(uid));
+  return ownerIdsInclude(turf.ownerIds, uid);
 }
 
 export async function fetchOwnedTurfsForUser(uid: string): Promise<Turf[]> {

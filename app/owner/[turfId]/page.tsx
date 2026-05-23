@@ -22,6 +22,8 @@ export default function OwnerTurfDashboardPage() {
     turfId,
     turf,
     turfLoading,
+    turfError,
+    refreshTurf,
     bookings,
     ensureBookings,
     getClosuresForMonth,
@@ -59,17 +61,25 @@ export default function OwnerTurfDashboardPage() {
 
   if (turfLoading && !turf) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        Loading venue…
-      </p>
+      <div className="py-12 text-center space-y-3">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+        <p className="text-sm text-muted-foreground">Loading venue…</p>
+      </div>
     );
   }
 
   if (!turf) {
     return (
-      <p className="text-sm text-muted-foreground py-8 text-center">
-        Venue not found.
-      </p>
+      <div className="py-8 text-center space-y-3 px-4">
+        <p className="text-sm text-muted-foreground">
+          {turfError
+            ? "Could not load this venue. Check your connection and try again."
+            : "Venue not found or you do not have access."}
+        </p>
+        <Button variant="outline" size="sm" onClick={() => void refreshTurf(true)}>
+          Retry
+        </Button>
+      </div>
     );
   }
 

@@ -11,12 +11,13 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  getFirebaseAuth,
   loginWithFirebase,
   logoutFirebase,
   subscribeToFirebaseAuth,
 } from "@/lib/firebase-auth";
 import { clearAllOwnerCache } from "@/lib/owner-cache";
-import { fetchOwnedTurfsForUser } from "@/lib/storage-owner";
+import { fetchOwnedTurfsForOwner } from "@/lib/fetch-owned-turfs";
 import type { Turf } from "@/lib/turf-schema";
 
 type TurfsLoadState = "idle" | "loading" | "ready" | "error";
@@ -39,6 +40,8 @@ function useOwnerAuthState() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const explicitLogoutRef = useRef(false);
+  const sessionUidRef = useRef<string | null>(null);
+  const turfsReadyRef = useRef(false);
 
   const refreshTurfs = useCallback(async (userId: string) => {
     setTurfsLoadState("loading");
@@ -47,9 +50,10 @@ function useOwnerAuthState() {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         if (attempt > 0) await delay(400 * attempt);
-        const turfs = await fetchOwnedTurfsForUser(userId);
+        const turfs = await fetchOwnedTurfsForOwner(userId);
         setOwnedTurfs(turfs);
         setTurfsLoadState("ready");
+        turfsReadyRef.current = true;
         return turfs;
       } catch (err) {
         lastError = err;
@@ -59,40 +63,100 @@ function useOwnerAuthState() {
 
     setOwnedTurfs([]);
     setTurfsLoadState("error");
+    turfsReadyRef.current = false;
     console.error("[owner-auth] could not load owned turfs", lastError);
     return [];
   }, []);
 
+  const applyUser = useCallback(
+    async (fbUser: { uid: string; email: string | null; displayName: string | null }) => {
+      sessionUidRef.current = fbUser.uid;
+      setUid(fbUser.uid);
+      setEmail(fbUser.email ?? "");
+      setDisplayName(
+        fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "Owner",
+      );
+      await refreshTurfs(fbUser.uid);
+    },
+    [refreshTurfs],
+  );
+
+  const clearSession = useCallback(() => {
+    sessionUidRef.current = null;
+    setUid(null);
+    setEmail("");
+    setDisplayName("");
+    setOwnedTurfs([]);
+    setTurfsLoadState("idle");
+    turfsReadyRef.current = false;
+  }, []);
+
   useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const auth = getFirebaseAuth();
+        await auth.authStateReady();
+        if (cancelled) return;
+
+        const current = auth.currentUser;
+        if (current) {
+          await applyUser({
+            uid: current.uid,
+            email: current.email,
+            displayName: current.displayName,
+          });
+        } else {
+          clearSession();
+        }
+      } catch (err) {
+        console.error("[owner-auth] init failed", err);
+        clearSession();
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+
     const unsub = subscribeToFirebaseAuth((fbUser) => {
       void (async () => {
         if (!fbUser) {
           if (explicitLogoutRef.current) {
             explicitLogoutRef.current = false;
-            setUid(null);
-            setEmail("");
-            setDisplayName("");
-            setOwnedTurfs([]);
-            setTurfsLoadState("idle");
+            clearSession();
             setIsLoading(false);
             return;
           }
-          // Ignore transient null during Firebase session restore.
+          if (sessionUidRef.current) {
+            return;
+          }
+          clearSession();
+          setIsLoading(false);
+          return;
+        }
+
+        if (fbUser.uid === sessionUidRef.current && turfsReadyRef.current) {
           return;
         }
 
         setIsLoading(true);
-        setUid(fbUser.uid);
-        setEmail(fbUser.email ?? "");
-        setDisplayName(
-          fbUser.displayName ?? fbUser.email?.split("@")[0] ?? "Owner",
-        );
-        await refreshTurfs(fbUser.uid);
-        setIsLoading(false);
+        try {
+          await applyUser({
+            uid: fbUser.uid,
+            email: fbUser.email,
+            displayName: fbUser.displayName,
+          });
+        } finally {
+          setIsLoading(false);
+        }
       })();
     });
-    return unsub;
-  }, [refreshTurfs]);
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [applyUser, clearSession]);
 
   const login = async (loginEmail: string, password: string) => {
     setError(null);
@@ -109,9 +173,7 @@ function useOwnerAuthState() {
     explicitLogoutRef.current = true;
     await logoutFirebase();
     clearAllOwnerCache();
-    setUid(null);
-    setOwnedTurfs([]);
-    setTurfsLoadState("idle");
+    clearSession();
     router.replace("/owner/login");
   };
 
@@ -157,7 +219,6 @@ export function useOwnerRouteGuard() {
     const isLogin = pathname === "/owner/login";
     const isSetup = pathname === "/owner/setup";
     const turfsReady = auth.turfsLoadState === "ready";
-    const turfsFailed = auth.turfsLoadState === "error";
 
     if (!auth.isAuthenticated && !isLogin) {
       router.replace("/owner/login");

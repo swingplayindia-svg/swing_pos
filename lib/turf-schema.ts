@@ -1,4 +1,5 @@
 import { normalizeTurfPricing } from "@/lib/turf-pricing";
+import { parseOwnerIdsField } from "@/lib/owner-ids";
 
 /** Turf document shape aligned with the Swing.Play mobile app model */
 
@@ -174,9 +175,10 @@ export function normalizeTurf(id: string, raw: Record<string, unknown>): Turf {
     turf_url: String(raw.turf_url ?? raw.googleMapsUrl ?? ""),
     pricing: normalizeTurfPricing(raw.pricing),
     email: String(raw.email ?? ""),
-    ownerIds: Array.isArray(raw.ownerIds)
-      ? (raw.ownerIds as string[]).filter((id) => typeof id === "string" && id.trim())
-      : undefined,
+    ownerIds: (() => {
+      const ids = parseOwnerIdsField(raw.ownerIds);
+      return ids.length > 0 ? ids : undefined;
+    })(),
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
   };

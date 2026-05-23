@@ -9,10 +9,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useOwnerAuth } from "@/hooks/use-owner-auth";
+import { fetchTurfForOwner } from "@/lib/fetch-turf-for-owner";
 import {
   fetchBookingsForTurf,
   fetchClosuresForMonth,
-  fetchTurfForOwner,
 } from "@/lib/storage-owner";
 import type { TurfClosure, TurfBooking } from "@/lib/turf-owner-schema";
 import type { Turf } from "@/lib/turf-schema";
@@ -22,12 +23,14 @@ import {
   invalidateOwnerCache,
   ownerCacheKey,
   OWNER_CACHE_TTL,
+  setOwnerCached,
 } from "@/lib/owner-cache";
 
 type OwnerTurfDataValue = {
   turfId: string;
   turf: Turf | null;
   turfLoading: boolean;
+  turfError: boolean;
   refreshTurf: (force?: boolean) => Promise<Turf | null>;
   bookings: TurfBooking[];
   bookingsLoading: boolean;
@@ -51,11 +54,13 @@ export function OwnerTurfDataProvider({
   turfId: string;
   children: ReactNode;
 }) {
+  const { ownedTurfs, turfsLoadState } = useOwnerAuth();
   const turfKey = ownerCacheKey(turfId, "turf");
   const bookingsKey = ownerCacheKey(turfId, "bookings");
 
   const [turf, setTurf] = useState<Turf | null>(null);
   const [turfLoading, setTurfLoading] = useState(true);
+  const [turfError, setTurfError] = useState(false);
   const [bookings, setBookings] = useState<TurfBooking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
 
@@ -66,11 +71,21 @@ export function OwnerTurfDataProvider({
         if (hit) {
           setTurf(hit);
           setTurfLoading(false);
+          setTurfError(false);
           return hit;
         }
       }
 
-      setTurfLoading(true);
+      const seeded = ownedTurfs.find((t) => t.id === turfId);
+      if (seeded && !force) {
+        setTurf(seeded);
+        setTurfLoading(false);
+        setTurfError(false);
+        setOwnerCached(turfKey, seeded, OWNER_CACHE_TTL.turf);
+      } else {
+        setTurfLoading(true);
+      }
+
       try {
         const data = await fetchOwnerCached(
           turfKey,
@@ -83,15 +98,17 @@ export function OwnerTurfDataProvider({
           { force },
         );
         setTurf(data);
+        setTurfError(false);
         return data;
       } catch {
-        setTurf(null);
-        return null;
+        setTurf(seeded ?? null);
+        setTurfError(true);
+        return seeded ?? null;
       } finally {
         setTurfLoading(false);
       }
     },
-    [turfId, turfKey],
+    [turfId, turfKey, ownedTurfs],
   );
 
   const ensureBookings = useCallback(
@@ -156,17 +173,24 @@ export function OwnerTurfDataProvider({
   }, [turfId]);
 
   useEffect(() => {
-    setTurf(null);
-    setBookings([]);
-    setTurfLoading(true);
-    void refreshTurf(false);
-  }, [turfId, refreshTurf]);
+    if (turfsLoadState !== "ready") return;
+
+    const seeded = ownedTurfs.find((t) => t.id === turfId);
+    if (seeded) {
+      setTurf(seeded);
+      setOwnerCached(turfKey, seeded, OWNER_CACHE_TTL.turf);
+      setTurfLoading(false);
+    }
+
+    void refreshTurf(Boolean(seeded));
+  }, [turfId, turfsLoadState, ownedTurfs, turfKey, refreshTurf]);
 
   const value = useMemo(
     () => ({
       turfId,
       turf,
       turfLoading,
+      turfError,
       refreshTurf,
       bookings,
       bookingsLoading,
@@ -180,6 +204,7 @@ export function OwnerTurfDataProvider({
       turfId,
       turf,
       turfLoading,
+      turfError,
       refreshTurf,
       bookings,
       bookingsLoading,
