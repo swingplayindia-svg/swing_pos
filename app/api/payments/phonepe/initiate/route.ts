@@ -57,7 +57,8 @@ export async function POST(request: Request) {
     }
 
     const appUrl = resolvePaymentAppUrl(request, body.returnOrigin);
-    const paymentReturnUrl = `${appUrl}/api/payments/phonepe/callback?bookingId=${booking.id}`;
+    // No query string — PhonePe whitelists an exact URL; ?bookingId= can break ui/v2/pay (400).
+    const paymentReturnUrl = `${appUrl}/api/payments/phonepe/callback`;
 
     if (
       phonePeEnvironment() === "production" &&

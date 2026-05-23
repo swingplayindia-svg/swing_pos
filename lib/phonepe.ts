@@ -176,7 +176,10 @@ export async function getPhonePeHealthStatus(
 
   if (environment === "production" && !mock) {
     issues.push(
-      "Whitelist exactly one URL in PhonePe dashboard: https://swing-pos.vercel.app (domain must match where customers pay).",
+      "Whitelist this exact redirect URL in PhonePe dashboard (no query params): https://swing-pos.vercel.app/api/payments/phonepe/callback",
+    );
+    issues.push(
+      "Customers must start payment from https://swing-pos.vercel.app (not localhost).",
     );
     issues.push(
       "UPI 'Something went wrong' often means paying from localhost or an unlisted domain — use the Vercel link in Chrome.",
