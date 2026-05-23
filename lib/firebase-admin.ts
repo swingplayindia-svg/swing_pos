@@ -1,44 +1,45 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
+import {
+  firebaseAdminConfigCode,
+  readFirebaseAdminEnv,
+} from "@/lib/firebase-admin-credentials";
 
 let adminApp: App | undefined;
 let adminDb: Firestore | undefined;
 let adminAuth: Auth | undefined;
+let initError: Error | undefined;
 
 function ensureAdminApp(): App {
   if (adminApp) return adminApp;
+  if (initError) throw initError;
 
   if (getApps().length) {
     adminApp = getApps()[0];
     return adminApp;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (projectId && clientEmail && privateKey) {
-    adminApp = initializeApp({
-      credential: cert({ projectId, clientEmail, privateKey }),
-    });
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    const json = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON) as {
-      project_id: string;
-      client_email: string;
-      private_key: string;
-    };
-    adminApp = initializeApp({
-      credential: cert({
-        projectId: json.project_id,
-        clientEmail: json.client_email,
-        privateKey: json.private_key,
-      }),
-    });
-  } else {
-    throw new Error(
+  const env = readFirebaseAdminEnv();
+  if (!env) {
+    initError = new Error(
       "Firebase Admin not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY or FIREBASE_SERVICE_ACCOUNT_JSON.",
     );
+    throw initError;
+  }
+
+  try {
+    adminApp = initializeApp({
+      credential: cert({
+        projectId: env.projectId,
+        clientEmail: env.clientEmail,
+        privateKey: env.privateKey,
+      }),
+    });
+  } catch (err) {
+    initError =
+      err instanceof Error ? err : new Error("Firebase Admin init failed.");
+    throw initError;
   }
 
   return adminApp;
@@ -54,4 +55,26 @@ export function getAdminAuth(): Auth {
   if (adminAuth) return adminAuth;
   adminAuth = getAuth(ensureAdminApp());
   return adminAuth;
+}
+
+/** Lightweight check for deploy / Vercel env debugging (no secrets returned). */
+export function getFirebaseAdminStatus(): {
+  configured: boolean;
+  ok: boolean;
+  code: string;
+} {
+  const env = readFirebaseAdminEnv();
+  if (!env) {
+    return { configured: false, ok: false, code: "missing_env" };
+  }
+  try {
+    ensureAdminApp();
+    return { configured: true, ok: true, code: "ok" };
+  } catch (err) {
+    return {
+      configured: true,
+      ok: false,
+      code: firebaseAdminConfigCode(err),
+    };
+  }
 }

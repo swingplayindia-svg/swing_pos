@@ -1,5 +1,23 @@
 import { NextResponse } from "next/server";
 import { getPublicTurf } from "@/lib/admin-bookings";
+import { firebaseAdminConfigCode } from "@/lib/firebase-admin-credentials";
+
+function apiError(err: unknown) {
+  const code = firebaseAdminConfigCode(err);
+  if (code === "missing_env" || code === "invalid_private_key") {
+    return NextResponse.json(
+      {
+        error:
+          code === "invalid_private_key"
+            ? "Server misconfiguration: invalid Firebase private key on host."
+            : "Server misconfiguration: Firebase Admin is not set up.",
+        code,
+      },
+      { status: 503 },
+    );
+  }
+  return NextResponse.json({ error: "Failed to load venue.", code }, { status: 500 });
+}
 
 export async function GET(
   _request: Request,
@@ -25,10 +43,7 @@ export async function GET(
       turfImage: turf.turfImage,
     });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json(
-      { error: "Failed to load venue." },
-      { status: 500 },
-    );
+    console.error("[public/turf]", err);
+    return apiError(err);
   }
 }
