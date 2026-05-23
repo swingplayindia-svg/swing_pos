@@ -1,3 +1,5 @@
+import { isLocalhostUrl } from "@/lib/app-url";
+
 export type PhonePeInitResult = {
   redirectUrl: string;
   merchantTransactionId: string;
@@ -10,10 +12,25 @@ export type PhonePeOrderStatus = {
   amountPaise?: number;
 };
 
+export type PhonePeHealthStatus = {
+  ok: boolean;
+  mock: boolean;
+  environment: "production" | "sandbox";
+  authOk: boolean;
+  credentialsPresent: boolean;
+  merchantIdPresent: boolean;
+  redirectUrlExample: string | null;
+  issues: string[];
+};
+
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
+export function phonePeEnvironment(): "production" | "sandbox" {
+  return process.env.PHONEPE_ENV === "production" ? "production" : "sandbox";
+}
+
 function isProduction(): boolean {
-  return process.env.PHONEPE_ENV === "production";
+  return phonePeEnvironment() === "production";
 }
 
 function oauthUrl(): string {
@@ -46,6 +63,34 @@ function requireV2Credentials(): void {
     throw new Error(
       "PhonePe credentials missing. Set PHONEPE_CLIENT_ID, PHONEPE_CLIENT_SECRET, and PHONEPE_CLIENT_VERSION from the PhonePe Business dashboard (Developer Settings).",
     );
+  }
+}
+
+/** PhonePe allows only [A-Za-z0-9_-], max 63 chars. */
+export function sanitizeMerchantOrderId(raw: string): string {
+  const cleaned = raw.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 63);
+  return cleaned || `SWING_${Date.now()}`;
+}
+
+export function validatePhonePeRedirectUrl(redirectUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(redirectUrl);
+  } catch {
+    throw new Error("Invalid payment return URL.");
+  }
+
+  if (isProduction()) {
+    if (isLocalhostUrl(redirectUrl)) {
+      throw new Error(
+        "PhonePe production cannot use localhost. Set NEXT_PUBLIC_APP_URL to https://swing-pos.vercel.app and pay from that domain (not npm run dev).",
+      );
+    }
+    if (parsed.protocol !== "https:") {
+      throw new Error(
+        "PhonePe production requires HTTPS return URL. Use https://swing-pos.vercel.app on Vercel.",
+      );
+    }
   }
 }
 
@@ -105,6 +150,64 @@ async function authHeaders(): Promise<Record<string, string>> {
   return headers;
 }
 
+export async function getPhonePeHealthStatus(
+  sampleRedirectUrl?: string,
+): Promise<PhonePeHealthStatus> {
+  const issues: string[] = [];
+  const mock = isPhonePeMock();
+  const environment = phonePeEnvironment();
+  const credentialsPresent = hasV2Credentials();
+  const merchantIdPresent = Boolean(process.env.PHONEPE_MERCHANT_ID?.trim());
+
+  if (!mock && !credentialsPresent) {
+    issues.push("Missing PHONEPE_CLIENT_ID, CLIENT_SECRET, or CLIENT_VERSION.");
+  }
+  if (!mock && !merchantIdPresent) {
+    issues.push("Missing PHONEPE_MERCHANT_ID.");
+  }
+
+  if (sampleRedirectUrl) {
+    try {
+      validatePhonePeRedirectUrl(sampleRedirectUrl);
+    } catch (err) {
+      issues.push(err instanceof Error ? err.message : "Invalid redirect URL.");
+    }
+  }
+
+  if (environment === "production" && !mock) {
+    issues.push(
+      "Whitelist exactly one URL in PhonePe dashboard: https://swing-pos.vercel.app (domain must match where customers pay).",
+    );
+    issues.push(
+      "UPI 'Something went wrong' often means paying from localhost or an unlisted domain — use the Vercel link in Chrome.",
+    );
+  }
+
+  let authOk = mock;
+  if (!mock && credentialsPresent) {
+    try {
+      await getAccessToken();
+      authOk = true;
+    } catch (err) {
+      authOk = false;
+      issues.push(
+        err instanceof Error ? err.message : "PhonePe OAuth token failed.",
+      );
+    }
+  }
+
+  return {
+    ok: issues.length === 0 && (mock || authOk),
+    mock,
+    environment,
+    authOk,
+    credentialsPresent,
+    merchantIdPresent,
+    redirectUrlExample: sampleRedirectUrl ?? null,
+    issues,
+  };
+}
+
 export async function getPhonePeOrderStatus(
   merchantOrderId: string,
 ): Promise<PhonePeOrderStatus> {
@@ -146,24 +249,28 @@ export async function createPhonePePayment(params: {
   mobileNumber?: string;
   bookingId?: string;
 }): Promise<PhonePeInitResult> {
+  const merchantTransactionId = sanitizeMerchantOrderId(
+    params.merchantTransactionId,
+  );
+  validatePhonePeRedirectUrl(params.redirectUrl);
+
   if (isPhonePeMock()) {
     const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
     const appUrl =
       envUrl && !envUrl.includes("localhost") ? envUrl : "http://localhost:3000";
     return {
-      redirectUrl: `${appUrl}/api/payments/phonepe/mock-confirm?merchantTransactionId=${encodeURIComponent(params.merchantTransactionId)}`,
-      merchantTransactionId: params.merchantTransactionId,
+      redirectUrl: `${appUrl}/api/payments/phonepe/mock-confirm?merchantTransactionId=${encodeURIComponent(merchantTransactionId)}`,
+      merchantTransactionId,
       mock: true,
     };
   }
 
   requireV2Credentials();
 
-  const phone =
-    params.mobileNumber?.replace(/\D/g, "").slice(-10) ?? "";
+  const phone = params.mobileNumber?.replace(/\D/g, "").slice(-10) ?? "";
 
   const body: Record<string, unknown> = {
-    merchantOrderId: params.merchantTransactionId,
+    merchantOrderId: merchantTransactionId,
     amount: params.amountPaise,
     expireAfter: 900,
     paymentFlow: {
@@ -172,19 +279,10 @@ export async function createPhonePePayment(params: {
       merchantUrls: {
         redirectUrl: params.redirectUrl,
       },
-      // UPI Collect/QR + cards + net banking — avoids getting stuck on "Opening payment app…"
-      paymentModeConfig: {
-        version: "V2",
-        enabledPaymentModes: [
-          { type: "UPI", flows: ["INTENT", "COLLECT", "QR"] },
-          { type: "CARD" },
-          { type: "NET_BANKING" },
-        ],
-      },
     },
     metaInfo: {
-      udf1: params.bookingId ?? "",
-      udf2: params.mobileNumber ?? "",
+      udf1: (params.bookingId ?? "").slice(0, 256),
+      udf2: phone.slice(0, 256),
     },
   };
 
@@ -206,6 +304,12 @@ export async function createPhonePePayment(params: {
   };
 
   if (!res.ok || !json.redirectUrl) {
+    console.error("[phonepe] pay failed", {
+      status: res.status,
+      code: json.code,
+      message: json.message,
+      redirectUrl: params.redirectUrl,
+    });
     throw new Error(
       json.message ??
         `PhonePe payment initiation failed (${json.code ?? res.status}).`,
@@ -214,6 +318,6 @@ export async function createPhonePePayment(params: {
 
   return {
     redirectUrl: json.redirectUrl,
-    merchantTransactionId: params.merchantTransactionId,
+    merchantTransactionId,
   };
 }

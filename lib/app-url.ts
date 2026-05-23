@@ -18,7 +18,7 @@ export function isLocalhostHost(host: string): boolean {
   return host === "localhost" || host === "127.0.0.1" || host.endsWith(".local");
 }
 
-function isLocalhostUrl(url: string): boolean {
+export function isLocalhostUrl(url: string): boolean {
   try {
     return isLocalhostHost(new URL(url).hostname);
   } catch {

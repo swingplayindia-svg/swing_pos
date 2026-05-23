@@ -72,6 +72,21 @@ export async function updateBookingAmountInr(
     });
 }
 
+/** Fresh PhonePe order id per pay attempt (reusing id causes UPI / checkout errors). */
+export async function refreshBookingPhonePeOrderId(
+  bookingId: string,
+): Promise<string> {
+  const merchantTransactionId = `SWING_${bookingId}_${Date.now()}`.slice(0, 63);
+  await getAdminDb()
+    .collection(BOOKINGS)
+    .doc(bookingId)
+    .update({
+      phonePeTransactionId: merchantTransactionId,
+      updatedAt: new Date().toISOString(),
+    });
+  return merchantTransactionId;
+}
+
 export async function getBookingById(
   bookingId: string,
 ): Promise<TurfBooking | null> {

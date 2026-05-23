@@ -3,17 +3,17 @@ import { parseISO } from "date-fns";
 import {
   getBookingById,
   getPublicTurf,
+  refreshBookingPhonePeOrderId,
   updateBookingAmountInr,
 } from "@/lib/admin-bookings";
 import { calculateBookingAmount } from "@/lib/booking-slots";
-import { resolvePaymentAppUrl } from "@/lib/app-url";
-import { createPhonePePayment } from "@/lib/phonepe";
+import { isLocalhostUrl, resolvePaymentAppUrl } from "@/lib/app-url";
+import { createPhonePePayment, phonePeEnvironment } from "@/lib/phonepe";
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       bookingId?: string;
-      /** Browser origin, e.g. https://swing-pos.vercel.app — avoids localhost in PhonePe redirect */
       returnOrigin?: string;
     };
     if (!body.bookingId) {
@@ -57,8 +57,24 @@ export async function POST(request: Request) {
     }
 
     const appUrl = resolvePaymentAppUrl(request, body.returnOrigin);
-    const merchantTransactionId =
-      booking.phonePeTransactionId ?? `SWING_${booking.id}`;
+    const paymentReturnUrl = `${appUrl}/api/payments/phonepe/callback?bookingId=${booking.id}`;
+
+    if (
+      phonePeEnvironment() === "production" &&
+      isLocalhostUrl(appUrl)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Payments must start from your live site (https://swing-pos.vercel.app), not localhost. PhonePe will show 'Something went wrong' on UPI otherwise.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const merchantTransactionId = await refreshBookingPhonePeOrderId(
+      booking.id,
+    );
 
     const amountPaise = Math.round(amountInr * 100);
     if (amountPaise < 100) {
@@ -71,7 +87,7 @@ export async function POST(request: Request) {
     const result = await createPhonePePayment({
       merchantTransactionId,
       amountPaise,
-      redirectUrl: `${appUrl}/api/payments/phonepe/callback?bookingId=${booking.id}`,
+      redirectUrl: paymentReturnUrl,
       mobileNumber: booking.customerPhone.replace(/\D/g, "").slice(-10),
       bookingId: booking.id,
     });
@@ -80,9 +96,10 @@ export async function POST(request: Request) {
       redirectUrl: result.redirectUrl,
       mock: result.mock ?? false,
       amountInr,
+      paymentReturnUrl,
     });
   } catch (err) {
-    console.error(err);
+    console.error("[phonepe/initiate]", err);
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Payment failed to start." },
       { status: 500 },
