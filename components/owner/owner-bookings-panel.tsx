@@ -12,6 +12,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useOwnerTurfData } from "@/hooks/use-owner-turf-data";
+import { OwnerBookingWhatsAppDialog } from "@/components/owner/owner-booking-whatsapp-dialog";
+import {
+  bookingConfirmedWhatsAppMessage,
+  bookingFromRecord,
+  bookingRejectedWhatsAppMessage,
+  openWhatsAppChat,
+} from "@/lib/whatsapp-booking";
 import {
   createTurfBooking,
   deleteTurfBooking,
@@ -40,6 +47,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
   const {
+    turf,
     bookings,
     bookingsLoading,
     ensureBookings,
@@ -56,6 +64,11 @@ export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
   const [startTime, setStartTime] = useState("18:00");
   const [endTime, setEndTime] = useState("19:00");
   const [saving, setSaving] = useState(false);
+  const [whatsappDialog, setWhatsappDialog] = useState<{
+    open: boolean;
+    kind: "confirm" | "reject";
+    message: string;
+  }>({ open: false, kind: "confirm", message: "" });
 
   const syncSelected = (list: TurfBooking[]) => {
     if (!selected) return;
@@ -98,6 +111,37 @@ export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
     try {
       await updateTurfBookingStatus(turfId, selected.id, status);
       await refresh();
+      setSheetOpen(false);
+      setSelected(null);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const venueName = turf?.name ?? "your venue";
+
+  const openWhatsAppFlow = (kind: "confirm" | "reject") => {
+    if (!selected) return;
+    const ctx = bookingFromRecord(selected, venueName);
+    const message =
+      kind === "confirm"
+        ? bookingConfirmedWhatsAppMessage(ctx)
+        : bookingRejectedWhatsAppMessage(ctx);
+    setWhatsappDialog({ open: true, kind, message });
+  };
+
+  const handleWhatsAppSend = async () => {
+    if (!selected) return;
+    setActionBusy(true);
+    try {
+      const status =
+        whatsappDialog.kind === "confirm" ? "confirmed" : "cancelled";
+      openWhatsAppChat(selected.customerPhone, whatsappDialog.message);
+      await updateTurfBookingStatus(turfId, selected.id, status);
+      setWhatsappDialog((d) => ({ ...d, open: false }));
+      await refresh();
+      setSheetOpen(false);
+      setSelected(null);
     } finally {
       setActionBusy(false);
     }
@@ -349,9 +393,9 @@ export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
                       type="button"
                       disabled={actionBusy}
                       className="w-full btn-primary-glow"
-                      onClick={() => void runStatus("confirmed")}
+                      onClick={() => openWhatsAppFlow("confirm")}
                     >
-                      Mark confirmed
+                      Confirm & notify on WhatsApp
                     </Button>
                   )}
                   {selected.status !== "completed" && (
@@ -370,9 +414,9 @@ export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
                     variant="outline"
                     disabled={actionBusy}
                     className="w-full text-destructive border-destructive/30"
-                    onClick={() => void runStatus("cancelled")}
+                    onClick={() => openWhatsAppFlow("reject")}
                   >
-                    Cancel booking
+                    Reject & notify on WhatsApp
                   </Button>
                   <Button
                     type="button"
@@ -390,6 +434,34 @@ export function OwnerBookingsPanel({ turfId }: { turfId: string }) {
           )}
         </SheetContent>
       </Sheet>
+
+      {selected && (
+        <OwnerBookingWhatsAppDialog
+          open={whatsappDialog.open}
+          onOpenChange={(open) =>
+            setWhatsappDialog((d) => ({ ...d, open }))
+          }
+          title={
+            whatsappDialog.kind === "confirm"
+              ? "Confirm booking"
+              : "Reject booking"
+          }
+          description={
+            whatsappDialog.kind === "confirm"
+              ? "Update status to confirmed and open WhatsApp with a ready message."
+              : "Cancel this booking and open WhatsApp with a rejection message."
+          }
+          messagePreview={whatsappDialog.message}
+          customerPhone={selected.customerPhone}
+          busy={actionBusy}
+          confirmLabel={
+            whatsappDialog.kind === "confirm"
+              ? "Confirm & open WhatsApp"
+              : "Reject & open WhatsApp"
+          }
+          onSendWhatsApp={handleWhatsAppSend}
+        />
+      )}
     </div>
   );
 }

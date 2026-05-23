@@ -15,6 +15,7 @@ import {
 import { SPORTS_OPTIONS, type TurfPricing } from "@/lib/turf-schema";
 import type { TimeSlot } from "@/lib/booking-slots";
 import { BookingPaymentSheet } from "@/components/booking/booking-payment-sheet";
+import { BookingQueueScreen } from "@/components/booking/booking-queue-screen";
 import { cn } from "@/lib/utils";
 import {
   CalendarDays,
@@ -105,6 +106,16 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
   const [paying, setPaying] = useState(false);
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
   const [reservedAmount, setReservedAmount] = useState(0);
+  const [showQueueScreen, setShowQueueScreen] = useState(false);
+  const [awaitingPaymentDismiss, setAwaitingPaymentDismiss] = useState(false);
+
+  const handlePaymentSheetOpenChange = (open: boolean) => {
+    setPaymentSheetOpen(open);
+    if (!open && awaitingPaymentDismiss) {
+      setAwaitingPaymentDismiss(false);
+      setShowQueueScreen(true);
+    }
+  };
 
   const sports = turf.sports.length > 0 ? turf.sports : [...SPORTS_OPTIONS];
   const hasPeriodSlots = usesPeriodSlots(turf.pricing);
@@ -206,6 +217,7 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
           ? reserveData.amountInr
           : amount;
       setReservedAmount(finalAmount);
+      setAwaitingPaymentDismiss(true);
       setPaymentSheetOpen(true);
 
       /* PhonePe checkout — re-enable when gateway is whitelisted on production
@@ -237,6 +249,10 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
   const canPay = Boolean(
     name.trim() && phone.trim() && date && sport && selectedSlot?.available,
   );
+
+  if (showQueueScreen) {
+    return <BookingQueueScreen venueName={turf.name} />;
+  }
 
   return (
     <div className="space-y-4 pb-28">
@@ -458,7 +474,7 @@ export function CustomerBookingForm({ turf }: { turf: PublicTurf }) {
 
       <BookingPaymentSheet
         open={paymentSheetOpen}
-        onOpenChange={setPaymentSheetOpen}
+        onOpenChange={handlePaymentSheetOpenChange}
         amountInr={reservedAmount || amount}
         venueName={turf.name}
       />
