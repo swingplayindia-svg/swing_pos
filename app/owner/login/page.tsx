@@ -10,14 +10,21 @@ import { Wind } from "lucide-react";
 
 export default function OwnerLoginPage() {
   const router = useRouter();
-  const { login, error, setError, isAuthenticated, ownedTurfs, isLoading } =
-    useOwnerAuth();
+  const {
+    login,
+    error,
+    setError,
+    isAuthenticated,
+    ownedTurfs,
+    isLoading,
+    turfsLoadState,
+  } = useOwnerAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isLoading || !isAuthenticated) return;
+    if (isLoading || !isAuthenticated || turfsLoadState !== "ready") return;
     if (ownedTurfs.length === 1) {
       router.replace(`/owner/${ownedTurfs[0].id}`);
     } else if (ownedTurfs.length > 1) {
@@ -25,7 +32,7 @@ export default function OwnerLoginPage() {
     } else {
       router.replace("/owner/setup");
     }
-  }, [isLoading, isAuthenticated, ownedTurfs, router]);
+  }, [isLoading, isAuthenticated, ownedTurfs, turfsLoadState, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

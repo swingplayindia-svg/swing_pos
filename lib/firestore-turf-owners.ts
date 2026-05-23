@@ -26,7 +26,10 @@ export function turfAllowsOwner(turf: Turf, uid: string): boolean {
 }
 
 export async function fetchOwnedTurfsForUser(uid: string): Promise<Turf[]> {
-  await requireFirebaseUser();
+  const user = await requireFirebaseUser();
+  if (user.uid !== uid) {
+    throw new Error("Signed-in user does not match requested owner.");
+  }
   const db = getDb();
   const q = query(
     collection(db, TURFS_COLLECTION),

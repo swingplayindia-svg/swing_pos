@@ -92,15 +92,38 @@ export function waitForFirebaseAuth(): Promise<FirebaseUser | null> {
   );
 }
 
+/** Waits until a user is signed in (ignores the initial null auth tick). */
+export function waitForSignedInUser(
+  timeoutMs = 12_000,
+): Promise<FirebaseUser> {
+  return ensurePersistence().then(
+    () =>
+      new Promise((resolve, reject) => {
+        const auth = getFirebaseAuth();
+        if (auth.currentUser) {
+          resolve(auth.currentUser);
+          return;
+        }
+        const timeout = setTimeout(() => {
+          unsub();
+          reject(new Error("Firebase sign-in timed out."));
+        }, timeoutMs);
+        const unsub = onAuthStateChanged(auth, (user) => {
+          if (!user) return;
+          clearTimeout(timeout);
+          unsub();
+          resolve(user);
+        });
+      }),
+  );
+}
+
 /** Resolves only when Firebase Auth has a signed-in user (required for Firestore rules). */
 export async function requireFirebaseUser(): Promise<FirebaseUser> {
-  const user = await waitForFirebaseAuth();
-  if (!user) {
-    throw new Error(
-      "You must sign in with Firebase Auth before accessing turfs.",
-    );
-  }
-  return user;
+  await ensurePersistence();
+  const auth = getFirebaseAuth();
+  if (auth.currentUser) return auth.currentUser;
+  return waitForSignedInUser();
 }
 
 export function subscribeToFirebaseAuth(
