@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { getDb } from "@/lib/firebase";
 import { requireFirebaseUser } from "@/lib/firebase-auth";
+import { normalizeTurfPricing } from "@/lib/turf-pricing";
 import { normalizeTurf, type Turf } from "@/lib/turf-schema";
 
 const TURFS_COLLECTION = "turfs";
@@ -82,11 +83,18 @@ export async function updateTurfInFirestore(
   const existing = await fetchTurfByIdFromFirestore(id);
   if (!existing) return null;
 
+  const mergedPricing =
+    updates.pricing !== undefined
+      ? normalizeTurfPricing({ ...existing.pricing, ...updates.pricing })
+      : existing.pricing;
+
   const updated: Turf = {
     ...existing,
     ...updates,
     id: existing.id,
     createdAt: existing.createdAt,
+    ownerIds: updates.ownerIds ?? existing.ownerIds,
+    pricing: mergedPricing,
     updatedAt: new Date().toISOString(),
   };
 

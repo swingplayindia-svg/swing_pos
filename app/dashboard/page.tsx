@@ -10,67 +10,30 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getTurfs, type Turf } from "@/lib/storage";
-import { TrendingUp, Wind, Users, Clock } from "lucide-react";
+import { Wind } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 
 export default function DashboardPage() {
   const [turfs, setTurfs] = useState<Turf[]>([]);
-  const [stats, setStats] = useState({
-    totalTurfs: 0,
-    totalBookings: 0,
-    activeUsers: 0,
-    revenue: 0,
-  });
+  const [totalTurfs, setTotalTurfs] = useState(0);
 
   useEffect(() => {
     void (async () => {
       try {
         const allTurfs = await getTurfs();
         setTurfs(allTurfs.slice(0, 5));
-        setStats({
-          totalTurfs: allTurfs.length,
-          totalBookings: Math.floor(Math.random() * 500) + 100,
-          activeUsers: Math.floor(Math.random() * 150) + 50,
-          revenue: Math.floor(Math.random() * 100000) + 50000,
-        });
+        setTotalTurfs(allTurfs.length);
       } catch {
         setTurfs([]);
+        setTotalTurfs(0);
       }
     })();
   }, []);
 
-  const statCards = [
-    {
-      title: "Total Turfs",
-      value: stats.totalTurfs,
-      icon: Wind,
-      color: "text-primary",
-    },
-    {
-      title: "Total Bookings",
-      value: stats.totalBookings,
-      icon: Clock,
-      color: "text-foreground",
-    },
-    {
-      title: "Active Users",
-      value: stats.activeUsers,
-      icon: Users,
-      color: "text-muted-foreground",
-    },
-    {
-      title: "Revenue",
-      value: `₹${stats.revenue.toLocaleString()}`,
-      icon: TrendingUp,
-      color: "text-primary",
-    },
-  ];
-
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
-        {/* Header */}
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
           <p className="text-muted-foreground">
@@ -78,31 +41,24 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Stat Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <Card key={stat.title} className="border-border bg-card">
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">
-                        {stat.title}
-                      </p>
-                      <p className="text-2xl font-bold text-foreground mt-2">
-                        {stat.value}
-                      </p>
-                    </div>
-                    <Icon className={`w-6 h-6 ${stat.color}`} />
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          <Card className="border-border bg-card">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Total Turfs
+                  </p>
+                  <p className="text-2xl font-bold text-foreground mt-2">
+                    {totalTurfs}
+                  </p>
+                </div>
+                <Wind className="w-6 h-6 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Recent Turfs */}
         <Card className="border-border bg-card">
           <CardHeader>
             <CardTitle>Recent Turfs</CardTitle>
@@ -111,7 +67,7 @@ export default function DashboardPage() {
           <CardContent>
             {turfs.length > 0 ? (
               <div className="space-y-4">
-                {turfs.map((turf: any) => (
+                {turfs.map((turf) => (
                   <div
                     key={turf.id}
                     className="p-4 border border-border rounded-lg flex items-center justify-between hover:bg-background transition-colors"

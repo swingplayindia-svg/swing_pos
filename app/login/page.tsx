@@ -71,6 +71,12 @@ export default function LoginPage() {
             <p className="mt-2 text-sm text-white/80 sm:text-base">
               Admin Dashboard
             </p>
+            <a
+              href="/owner/login"
+              className="mt-3 inline-block text-sm text-white/90 underline underline-offset-2 hover:text-white"
+            >
+              Turf owner portal →
+            </a>
           </div>
 
           <Card className="border-white/15 bg-black/45 shadow-2xl shadow-black/40 backdrop-blur-md">

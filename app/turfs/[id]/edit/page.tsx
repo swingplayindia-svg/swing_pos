@@ -12,13 +12,17 @@ export default function EditTurfPage() {
   const router = useRouter();
   const id = params.id as string;
   const [initial, setInitial] = useState<ReturnType<typeof turfToForm> | null>(null);
+  const [ownerIds, setOwnerIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void (async () => {
       try {
         const turf = await getTurfById(id);
-        if (turf) setInitial(turfToForm(turf));
+        if (turf) {
+          setInitial(turfToForm(turf));
+          setOwnerIds(turf.ownerIds ?? []);
+        }
       } finally {
         setLoading(false);
       }
@@ -51,6 +55,7 @@ export default function EditTurfPage() {
         mode="edit"
         turfId={id}
         initialData={initial}
+        initialOwnerIds={ownerIds}
         onSuccess={() => router.push(`/turfs/${id}`)}
       />
     </div>

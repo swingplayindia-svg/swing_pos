@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { AppLayout } from "@/components/app-layout";
 import {
   Card,
@@ -10,9 +11,18 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { Check, Copy } from "lucide-react";
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+
+  const copyUid = async () => {
+    if (!user?.id) return;
+    await navigator.clipboard.writeText(user.id);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <AppLayout>
@@ -50,6 +60,63 @@ export default function SettingsPage() {
                 {user?.role}
               </p>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border bg-card border-primary/20">
+          <CardHeader>
+            <CardTitle>Firebase CMS admin</CardTitle>
+            <CardDescription>
+              Required to save Community carousel slides when{" "}
+              <code className="text-xs bg-muted px-1 rounded">cmsAdmins</code> is
+              configured in Realtime Database.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm text-muted-foreground">Your Firebase UID</label>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <code className="text-xs bg-muted px-2 py-1.5 rounded font-mono break-all">
+                  {user?.id ?? "—"}
+                </code>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-border shrink-0"
+                  onClick={() => void copyUid()}
+                  disabled={!user?.id}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-4 w-4 mr-1" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy UID
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            <ol className="text-sm text-muted-foreground space-y-2 list-decimal list-inside">
+              <li>
+                Firebase Console → Realtime Database → <strong>Rules</strong> → publish{" "}
+                <code className="text-xs">database.rules.json</code> from{" "}
+                <code className="text-xs">swing_ios_app</code>
+              </li>
+              <li>
+                Realtime Database → <strong>Data</strong> → add{" "}
+                <code className="text-xs">cmsAdmins / {"{your UID}"} / true</code>
+              </li>
+            </ol>
+            <p className="text-xs text-muted-foreground">
+              Until any entry exists under <code className="bg-muted px-1 rounded">cmsAdmins</code>,
+              any signed-in CMS user can write carousels (bootstrap). After you add admins, only
+              listed UIDs can write.
+            </p>
           </CardContent>
         </Card>
 

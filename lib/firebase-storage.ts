@@ -50,3 +50,28 @@ export async function uploadTurfImage(
 export function isDefaultTurfImage(url: string): boolean {
   return !url || url === "/turf-default.jpg";
 }
+
+export async function uploadCarouselImage(
+  file: File,
+  slideId: string,
+): Promise<string> {
+  await requireFirebaseUser();
+
+  if (!ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Please upload a JPEG, PNG, or WebP image.");
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error("Image must be 5 MB or smaller.");
+  }
+
+  const ext = extensionFor(file);
+  const path = `carousels/community/${slideId}/${Date.now()}.${ext}`;
+  const storageRef = ref(getFirebaseStorage(), path);
+
+  await uploadBytes(storageRef, file, {
+    contentType: file.type,
+    customMetadata: { uploadedAt: new Date().toISOString() },
+  });
+
+  return getDownloadURL(storageRef);
+}

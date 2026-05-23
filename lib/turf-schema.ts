@@ -1,3 +1,5 @@
+import { normalizeTurfPricing } from "@/lib/turf-pricing";
+
 /** Turf document shape aligned with the Swing.Play mobile app model */
 
 export interface TurfContact {
@@ -14,9 +16,36 @@ export interface TurfAmenities {
   seating: boolean;
 }
 
-export interface TurfPricing {
+export type TimeSlotPeriod = "morning" | "evening";
+
+export interface TurfOperatingSlot {
+  period: TimeSlotPeriod;
+  start: string;
+  end: string;
+  enabled?: boolean;
+}
+
+/** Rates for one period (morning or evening); same override rules as TurfPricing base. */
+export interface TurfPeriodPricing {
   weekday: number;
   weekend: number;
+  dayRates?: Partial<Record<"0" | "1" | "2" | "3" | "4" | "5" | "6", number>>;
+  dateRates?: Record<string, number>;
+}
+
+export interface TurfPricing {
+  /** Default ₹/hr Mon–Fri when no day/date override */
+  weekday: number;
+  /** Default ₹/hr Sat–Sun when no day/date override */
+  weekend: number;
+  /** Optional ₹/hr per weekday: 0=Sun … 6=Sat */
+  dayRates?: Partial<Record<"0" | "1" | "2" | "3" | "4" | "5" | "6", number>>;
+  /** Optional ₹/hr for specific dates (YYYY-MM-DD), highest priority */
+  dateRates?: Record<string, number>;
+  /** Morning + evening windows with separate rates */
+  usePeriodSlots?: boolean;
+  operatingSlots?: TurfOperatingSlot[];
+  periodPricing?: Partial<Record<TimeSlotPeriod, TurfPeriodPricing>>;
 }
 
 export interface Turf {
@@ -47,6 +76,8 @@ export interface Turf {
   turf_url: string;
   pricing: TurfPricing;
   email: string;
+  /** Firebase Auth UIDs allowed to manage this venue in the owner portal. */
+  ownerIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -141,15 +172,11 @@ export function normalizeTurf(id: string, raw: Record<string, unknown>): Turf {
     amenities,
     turfImage: String(raw.turfImage ?? raw.image ?? "/turf-default.jpg"),
     turf_url: String(raw.turf_url ?? raw.googleMapsUrl ?? ""),
-    pricing: {
-      weekday: Number((raw.pricing as TurfPricing)?.weekday ?? 0),
-      weekend: Number(
-        (raw.pricing as TurfPricing)?.weekend ??
-          (raw.pricing as TurfPricing)?.weekday ??
-          0,
-      ),
-    },
+    pricing: normalizeTurfPricing(raw.pricing),
     email: String(raw.email ?? ""),
+    ownerIds: Array.isArray(raw.ownerIds)
+      ? (raw.ownerIds as string[]).filter((id) => typeof id === "string" && id.trim())
+      : undefined,
     createdAt: String(raw.createdAt ?? new Date().toISOString()),
     updatedAt: String(raw.updatedAt ?? new Date().toISOString()),
   };

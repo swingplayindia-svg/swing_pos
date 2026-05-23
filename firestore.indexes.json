@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "turfBookings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "turfId", "order": "ASCENDING" },
+        { "fieldPath": "startAt", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

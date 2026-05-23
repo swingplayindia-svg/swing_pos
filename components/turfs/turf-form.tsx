@@ -26,10 +26,17 @@ type TurfFormProps = {
   mode: "add" | "edit";
   turfId?: string;
   initialData?: TurfForm;
+  initialOwnerIds?: string[];
   onSuccess: () => void;
 };
 
-export function TurfForm({ mode, turfId, initialData, onSuccess }: TurfFormProps) {
+export function TurfForm({
+  mode,
+  turfId,
+  initialData,
+  initialOwnerIds,
+  onSuccess,
+}: TurfFormProps) {
   const storageFolderId = useRef(turfId ?? crypto.randomUUID()).current;
   const [isLoading, setIsLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
@@ -37,6 +44,9 @@ export function TurfForm({ mode, turfId, initialData, onSuccess }: TurfFormProps
   const [quickMode, setQuickMode] = useState(mode === "add");
   const [formData, setFormData] = useState<TurfForm>(
     initialData ?? { ...EMPTY_TURF_FORM },
+  );
+  const [ownerIdsCsv, setOwnerIdsCsv] = useState(
+    () => initialOwnerIds?.join(", ") ?? "",
   );
 
   const busy = isLoading || imageUploading;
@@ -69,10 +79,19 @@ export function TurfForm({ mode, turfId, initialData, onSuccess }: TurfFormProps
     setIsLoading(true);
     try {
       const payload = buildTurfFromForm(formData);
+      const ownerIds = ownerIdsCsv
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
       if (mode === "edit" && turfId) {
-        await updateTurf(turfId, payload);
+        await updateTurf(turfId, {
+          ...payload,
+          ...(ownerIds.length > 0 ? { ownerIds } : { ownerIds: [] }),
+        });
       } else {
-        await addTurf(payload);
+        await addTurf(
+          ownerIds.length > 0 ? { ...payload, ownerIds } : payload,
+        );
       }
       onSuccess();
     } catch {
@@ -221,6 +240,20 @@ export function TurfForm({ mode, turfId, initialData, onSuccess }: TurfFormProps
 
       {showFull && (
         <>
+          <FormSection
+            title="Turf owners"
+            description="Firebase Auth UIDs for the mobile owner portal (/owner). Comma-separated."
+          >
+            <FormField label="Owner UIDs">
+              <Input
+                value={ownerIdsCsv}
+                onChange={(e) => setOwnerIdsCsv(e.target.value)}
+                placeholder="uid1, uid2"
+                className="bg-background font-mono text-sm"
+              />
+            </FormField>
+          </FormSection>
+
           <FormSection title="Listing" description="Slug and external booking link">
             <FormField label="Slug">
               <Input

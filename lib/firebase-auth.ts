@@ -5,6 +5,7 @@ import {
   getAuth,
   onAuthStateChanged,
   setPersistence,
+  signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
   type User as FirebaseUser,
@@ -54,6 +55,19 @@ export async function loginWithFirebase(
     getFirebaseAuth(),
     email,
     password,
+  );
+  const session = firebaseUserToSession(credential.user);
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return session;
+}
+
+export async function loginWithCustomFirebaseToken(
+  customToken: string,
+): Promise<User> {
+  await ensurePersistence();
+  const credential = await signInWithCustomToken(
+    getFirebaseAuth(),
+    customToken,
   );
   const session = firebaseUserToSession(credential.user);
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));

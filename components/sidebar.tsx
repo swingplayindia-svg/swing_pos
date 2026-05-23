@@ -10,6 +10,7 @@ import {
   Menu,
   X,
   LogOut,
+  Images,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,12 @@ export function Sidebar({ onLogout }: SidebarProps) {
   const menuItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/turfs", label: "Turfs", icon: Wind, matchPrefix: true },
+    {
+      href: "/community/carousels",
+      label: "Community",
+      icon: Images,
+      matchPrefix: true,
+    },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 

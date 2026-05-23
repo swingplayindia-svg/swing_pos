@@ -1,6 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
     // Users: anyone authenticated can read (for discovery); write own only
     match /users/{userId} {
       allow read: if request.auth != null;
@@ -71,10 +72,46 @@ service cloud.firestore {
         && resource.data.creatorUid == request.auth.uid;
     }
 
-    // Turfs (venues): authenticated read/write for app + admin CMS
+    // --- Turf owner portal helpers ---
+    function turfDoc(turfId) {
+      return get(/databases/$(database)/documents/turfs/$(turfId)).data;
+    }
+
+    function isTurfOwner(turfId) {
+      return request.auth != null
+        && turfDoc(turfId).keys().hasAny(['ownerIds'])
+        && request.auth.uid in turfDoc(turfId).ownerIds;
+    }
+
+    // Turfs (venues): authenticated read; CMS + app keep full write (same as your current rules)
     match /turfs/{turfId} {
       allow read: if request.auth != null;
       allow create, update, delete: if request.auth != null;
+    }
+
+    // Owner profile (optional)
+    match /turfOwners/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Owner portal: bookings
+    match /turfBookings/{bookingId} {
+      allow read: if request.auth != null && isTurfOwner(resource.data.turfId);
+      allow create: if request.auth != null && isTurfOwner(request.resource.data.turfId);
+      allow update, delete: if request.auth != null && isTurfOwner(resource.data.turfId);
+    }
+
+    // Owner portal: closed days on calendar
+    match /turfClosures/{closureId} {
+      allow read: if request.auth != null && isTurfOwner(resource.data.turfId);
+      allow create: if request.auth != null && isTurfOwner(request.resource.data.turfId);
+      allow update, delete: if request.auth != null && isTurfOwner(resource.data.turfId);
+    }
+
+    // Owner email OTP — server (Admin SDK) only
+    match /ownerLoginOtps/{email} {
+      allow read, write: if false;
     }
   }
 }

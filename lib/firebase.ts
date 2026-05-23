@@ -4,6 +4,7 @@ import {
   initializeFirestore,
   type Firestore,
 } from "firebase/firestore";
+import { getDatabase, type Database } from "firebase/database";
 import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -19,6 +20,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp | undefined;
 let db: Firestore | undefined;
+let rtdb: Database | undefined;
 let storage: FirebaseStorage | undefined;
 
 export function getFirebaseApp(): FirebaseApp {
@@ -46,6 +48,16 @@ export function getDb(): Firestore {
     }
   }
   return db;
+}
+
+export function getRtdb(): Database {
+  if (typeof window === "undefined") {
+    throw new Error("Realtime Database is only available in the browser");
+  }
+  if (!rtdb) {
+    rtdb = getDatabase(getFirebaseApp());
+  }
+  return rtdb;
 }
 
 export function getFirebaseStorage(): FirebaseStorage {
