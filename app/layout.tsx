@@ -15,24 +15,16 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Swing.Play - Admin CMS",
-  description: "Manage your turf venues with Swing.Play Admin Dashboard",
+  title: {
+    default: "Swing Portal",
+    template: "%s · Swing Portal",
+  },
+  applicationName: "Swing Portal",
+  description: "Swing Portal — manage turf venues, bookings, and owners.",
   icons: {
-    icon: [
-      {
-        url: "/icon-light-32x32.png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/icon-dark-32x32.png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/logo.png",
-        type: "image/svg+xml",
-      },
-    ],
-    apple: "/apple-icon.png",
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    shortcut: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
   },
 };
 
