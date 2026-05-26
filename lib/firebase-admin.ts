@@ -3,6 +3,7 @@ import { getAuth, type Auth } from "firebase-admin/auth";
 import { getDatabase, type Database } from "firebase-admin/database";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getMessaging, type Messaging } from "firebase-admin/messaging";
+import { getStorage } from "firebase-admin/storage";
 import {
   firebaseAdminConfigCode,
   readFirebaseAdminEnv,
@@ -29,6 +30,16 @@ export function resolveFirebaseDatabaseUrl(projectId?: string): string | undefin
   return undefined;
 }
 
+/** Storage bucket name (no gs:// prefix). */
+export function resolveFirebaseStorageBucket(projectId?: string): string {
+  const explicit = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim();
+  if (explicit) return explicit.replace(/^gs:\/\//, "");
+  if (projectId) return `${projectId}.appspot.com`;
+  throw new Error(
+    "Set NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET in .env.local (Firebase Console → Storage → bucket name).",
+  );
+}
+
 function ensureAdminApp(): App {
   if (adminApp) return adminApp;
   if (initError) throw initError;
@@ -48,6 +59,7 @@ function ensureAdminApp(): App {
   }
 
   const databaseURL = resolveFirebaseDatabaseUrl(env.projectId);
+  const storageBucket = resolveFirebaseStorageBucket(env.projectId);
 
   try {
     adminApp = initializeApp(
@@ -58,6 +70,7 @@ function ensureAdminApp(): App {
           clientEmail: env.clientEmail,
           privateKey: env.privateKey,
         }),
+        storageBucket,
         ...(databaseURL ? { databaseURL } : {}),
       },
       ADMIN_APP_NAME,
@@ -102,6 +115,12 @@ export function getAdminMessaging(): Messaging {
   if (adminMessaging) return adminMessaging;
   adminMessaging = getMessaging(ensureAdminApp());
   return adminMessaging;
+}
+
+export function getAdminBucket() {
+  const env = readFirebaseAdminEnv();
+  const bucketName = resolveFirebaseStorageBucket(env?.projectId);
+  return getStorage(ensureAdminApp()).bucket(bucketName);
 }
 
 /** Lightweight check for deploy / Vercel env debugging (no secrets returned). */

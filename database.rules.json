@@ -267,7 +267,13 @@
       ".read": "auth != null",
       ".write": "auth != null && root.child('cmsAdmins').child(auth.uid).val() == true",
       "$sportKey": {
-        ".validate": "newData.isBoolean()"
+        ".validate": "newData.isBoolean() || (newData.hasChildren(['enabled', 'imageUrl']) && newData.child('enabled').isBoolean() && newData.child('imageUrl').isString())",
+        "enabled": {
+          ".validate": "newData.isBoolean()"
+        },
+        "imageUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 4096"
+        }
       }
     }
   }

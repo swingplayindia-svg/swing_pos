@@ -1,5 +1,10 @@
 import { getFirebaseIdToken } from "@/lib/firebase-auth";
-import type { SportScoringFlags, SportScoringKey } from "@/lib/sports-scoring-schema";
+import type {
+  SportScoringFlags,
+  SportScoringKey,
+  SportScoringState,
+} from "@/lib/sports-scoring-schema";
+import { sportScoringStateToFlags } from "@/lib/sports-scoring-schema";
 
 async function sportsScoringFetch<T>(
   init?: RequestInit,
@@ -21,44 +26,78 @@ async function sportsScoringFetch<T>(
   return data;
 }
 
+export async function fetchSportScoring(): Promise<SportScoringState> {
+  const { sports } = await sportsScoringFetch<{ sports: SportScoringState }>();
+  return sports;
+}
+
+/** @deprecated Use fetchSportScoring */
 export async function fetchSportScoringFlags(): Promise<SportScoringFlags> {
-  const { flags } = await sportsScoringFetch<{ flags: SportScoringFlags }>();
-  return flags;
+  return sportScoringStateToFlags(await fetchSportScoring());
 }
 
 export async function setSportScoringEnabled(
   key: SportScoringKey,
   enabled: boolean,
-): Promise<SportScoringFlags> {
-  const { flags } = await sportsScoringFetch<{ flags: SportScoringFlags }>({
+): Promise<SportScoringState> {
+  const { sports } = await sportsScoringFetch<{ sports: SportScoringState }>({
     method: "PATCH",
     body: JSON.stringify({ key, enabled }),
   });
-  return flags;
+  return sports;
 }
 
+export async function setSportScoringImageUrl(
+  key: SportScoringKey,
+  imageUrl: string,
+): Promise<SportScoringState> {
+  const { sports } = await sportsScoringFetch<{ sports: SportScoringState }>({
+    method: "PATCH",
+    body: JSON.stringify({ key, imageUrl }),
+  });
+  return sports;
+}
+
+export async function saveAllSportScoring(
+  sports: SportScoringState,
+): Promise<SportScoringState> {
+  const res = await sportsScoringFetch<{ sports: SportScoringState }>({
+    method: "PATCH",
+    body: JSON.stringify({ sports }),
+  });
+  return res.sports;
+}
+
+/** @deprecated Use saveAllSportScoring */
 export async function saveAllSportScoringFlags(
   flags: SportScoringFlags,
 ): Promise<SportScoringFlags> {
-  const res = await sportsScoringFetch<{ flags: SportScoringFlags }>({
-    method: "PATCH",
-    body: JSON.stringify({ flags }),
-  });
-  return res.flags;
+  const sports = await fetchSportScoring();
+  const next = { ...sports };
+  for (const key of Object.keys(flags) as SportScoringKey[]) {
+    next[key] = { ...next[key], enabled: flags[key] };
+  }
+  return sportScoringStateToFlags(await saveAllSportScoring(next));
 }
 
-export async function seedDefaultSportScoringFlags(): Promise<SportScoringFlags> {
-  const { flags } = await sportsScoringFetch<{ flags: SportScoringFlags }>({
+export async function seedDefaultSportScoring(): Promise<SportScoringState> {
+  const { sports } = await sportsScoringFetch<{ sports: SportScoringState }>({
     method: "PATCH",
     body: JSON.stringify({ action: "seed" }),
   });
-  return flags;
+  return sports;
 }
 
-export async function disableAllSportScoringFlags(): Promise<SportScoringFlags> {
-  const { flags } = await sportsScoringFetch<{ flags: SportScoringFlags }>({
+/** @deprecated Use seedDefaultSportScoring */
+export const seedDefaultSportScoringFlags = seedDefaultSportScoring;
+
+export async function disableAllSportScoring(): Promise<SportScoringState> {
+  const { sports } = await sportsScoringFetch<{ sports: SportScoringState }>({
     method: "PATCH",
     body: JSON.stringify({ action: "disableAll" }),
   });
-  return flags;
+  return sports;
 }
+
+/** @deprecated Use disableAllSportScoring */
+export const disableAllSportScoringFlags = disableAllSportScoring;

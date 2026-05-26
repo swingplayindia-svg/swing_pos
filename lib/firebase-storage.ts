@@ -75,3 +75,41 @@ export async function uploadCarouselImage(
 
   return getDownloadURL(storageRef);
 }
+
+/** Sport scoring card art — uploaded via Admin API (bypasses client Storage rules). */
+export async function uploadSportScoringImage(
+  file: File,
+  sportKey: string,
+): Promise<string> {
+  const { getFirebaseIdToken, requireFirebaseUser } = await import(
+    "@/lib/firebase-auth"
+  );
+  await requireFirebaseUser();
+
+  if (!ALLOWED_TYPES.has(file.type)) {
+    throw new Error("Please upload a JPEG, PNG, or WebP image.");
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error("Image must be 5 MB or smaller.");
+  }
+
+  const token = await getFirebaseIdToken();
+  const form = new FormData();
+  form.append("file", file);
+  form.append("sportKey", sportKey);
+
+  const res = await fetch("/api/admin/sports-scoring/image", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+
+  const data = (await res.json()) as { url?: string; error?: string };
+  if (!res.ok) {
+    throw new Error(data.error ?? `Upload failed (${res.status})`);
+  }
+  if (!data.url) {
+    throw new Error("Upload succeeded but no URL was returned.");
+  }
+  return data.url;
+}
