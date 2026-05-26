@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCommunityCarouselSlides } from "@/lib/storage-community-carousels";
 import { cn } from "@/lib/utils";
-import { ChevronRight, Images, LayoutGrid, Plus } from "lucide-react";
+import { Bell, ChevronRight, Images, LayoutGrid, Plus, Trophy } from "lucide-react";
 
 const NAV = [
   { href: "/community/carousels", label: "All Slides", icon: LayoutGrid },
   { href: "/community/carousels/add", label: "Add Slide", icon: Plus },
+  { href: "/community/scoring", label: "Sport scoring", icon: Trophy },
+  { href: "/community/notifications", label: "Push", icon: Bell },
 ] as const;
 
 function isEditPath(pathname: string) {
@@ -44,14 +46,11 @@ export function CommunityHubShell({ children }: { children: React.ReactNode }) {
                 </span>
               </div>
               <h1 className="font-display text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-                Carousel banners
+                Community & app config
               </h1>
               <p className="text-sm text-muted-foreground max-w-lg">
-                Manage slides at{" "}
-                <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">
-                  Carousels/community
-                </code>
-                . Changes sync to the iOS app in real time.
+                Carousels, live scoring toggles, and push notifications sync to the
+                iOS app in real time via Realtime Database.
               </p>
             </div>
 

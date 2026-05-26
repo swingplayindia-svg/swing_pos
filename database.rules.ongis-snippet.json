@@ -1,0 +1,9 @@
+{
+  "ongis_sports_scoring": {
+    ".read": "auth != null",
+    ".write": "auth != null && root.child('cmsAdmins').child(auth.uid).val() == true",
+    "$sportKey": {
+      ".validate": "newData.isBoolean()"
+    }
+  }
+}

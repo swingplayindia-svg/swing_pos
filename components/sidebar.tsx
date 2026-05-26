@@ -11,6 +11,8 @@ import {
   X,
   LogOut,
   Images,
+  Trophy,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +32,16 @@ export function Sidebar({ onLogout }: SidebarProps) {
       label: "Community",
       icon: Images,
       matchPrefix: true,
+    },
+    {
+      href: "/community/scoring",
+      label: "Scoring",
+      icon: Trophy,
+    },
+    {
+      href: "/community/notifications",
+      label: "Push",
+      icon: Bell,
     },
     { href: "/settings", label: "Settings", icon: Settings },
   ];

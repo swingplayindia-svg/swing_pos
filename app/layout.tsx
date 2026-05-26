@@ -38,9 +38,11 @@ export default function RootLayout({
       lang="en"
       className="light bg-background"
       style={{ colorScheme: "light" }}
+      suppressHydrationWarning
     >
       <body
         className={`${sora.variable} ${dmSans.variable} antialiased font-sans`}
+        suppressHydrationWarning
       >
         {children}
         <FirebaseAnalyticsProvider />

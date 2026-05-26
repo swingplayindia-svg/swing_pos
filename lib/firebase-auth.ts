@@ -126,6 +126,12 @@ export async function requireFirebaseUser(): Promise<FirebaseUser> {
   return waitForSignedInUser();
 }
 
+/** ID token for authenticated CMS API routes (Bearer). */
+export async function getFirebaseIdToken(): Promise<string> {
+  const user = await requireFirebaseUser();
+  return user.getIdToken();
+}
+
 export function subscribeToFirebaseAuth(
   onUser: (user: FirebaseUser | null) => void,
 ): () => void {

@@ -1,0 +1,274 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        "presence": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $uid"
+        },
+        "location": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "userConnections": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "unfriended": {
+          "$otherUid": {
+            ".validate": "newData.hasChildren(['at'])"
+          }
+        },
+        "blocked": {
+          "$otherUid": {
+            ".validate": "newData.hasChildren(['at'])"
+          }
+        }
+      }
+    },
+    "likes": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+        "$targetUid": {
+          ".read": "auth != null && (auth.uid == $uid || auth.uid == $targetUid)",
+          ".write": "auth != null && auth.uid == $uid",
+          ".validate": "newData.hasChildren(['at'])"
+        }
+      }
+    },
+    "receivedRequests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$fromUid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "userInbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$conversationId": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && (auth.uid == $uid || root.child('conversations').child($conversationId).child('participants').child(auth.uid).val() == true)"
+        }
+      }
+    },
+    "conversations": {
+      "$conversationId": {
+        "participants": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "messages": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "typing": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "lastMessage": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      }
+    },
+    "sentRequests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$toUid": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "userNotifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$notificationId": {
+          ".write": "auth != null",
+          ".read": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "matchInvites": {
+      "$inviteId": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    },
+    "userMatchInvites": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null"
+      }
+    },
+    "publicMatches": {
+      ".read": "auth != null",
+      "$matchId": {
+        ".read": "auth != null && (data.child('access').val() != 'Private' || data.child('hostId').val() == auth.uid || data.child('joinedPlayerIds').child(auth.uid).exists())",
+        ".write": "auth != null && (!data.exists() && newData.child('hostId').val() == auth.uid || data.child('hostId').val() == auth.uid)",
+        "joinedPlayerIds": {
+          "$playerId": {
+            ".read": "auth != null",
+            ".write": "auth != null && (auth.uid == $playerId || root.child('publicMatches').child($matchId).child('hostId').val() == auth.uid) && root.child('publicMatches').child($matchId).child('hostId').val() != $playerId"
+          }
+        }
+      }
+    },
+    "publicMatchJoinRequests": {
+      "$requestId": {
+        ".read": "auth != null && (data.child('hostId').val() == auth.uid || data.child('requesterId').val() == auth.uid)",
+        ".write": "auth != null && (!data.exists() && newData.child('requesterId').val() == auth.uid || data.child('hostId').val() == auth.uid)"
+      }
+    },
+    "hostPublicMatchRequests": {
+      "$hostId": {
+        ".read": "auth != null && auth.uid == $hostId",
+        "$requestId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "userHostedPublicMatches": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$matchId": {
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "userJoinedPublicMatches": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$matchId": {
+          ".write": "auth != null && (auth.uid == $uid || root.child('publicMatches').child($matchId).child('hostId').val() == auth.uid)"
+        }
+      }
+    },
+    "userSentPublicMatchRequests": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$requestId": {
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "emailQueue": {
+      "$emailId": {
+        ".write": "auth != null",
+        ".read": "auth != null"
+      }
+    },
+    "cmsAdmins": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": false
+      }
+    },
+    "padelSessions": {
+      ".read": "auth != null",
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() && newData.child('hostId').val() == auth.uid || data.child('hostId').val() == auth.uid)",
+        "players": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid",
+          "$playerId": {
+            ".write": "auth != null && (root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid || auth.uid == $playerId)"
+          }
+        },
+        "rounds": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid || root.child('padelSessions').child($sessionId).child('players').child(auth.uid).exists())",
+          "$roundId": {
+            ".read": "auth != null",
+            ".write": "auth != null && (root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid || root.child('padelSessions').child($sessionId).child('players').child(auth.uid).exists())"
+          }
+        },
+        "currentRoundIndex": {
+          ".read": "auth != null",
+          ".write": "auth != null && (root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid || root.child('padelSessions').child($sessionId).child('players').child(auth.uid).exists())"
+        },
+        "phase": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid"
+        },
+        "completedAt": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('padelSessions').child($sessionId).child('hostId').val() == auth.uid"
+        }
+      }
+    },
+    "userPadelSessions": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$sessionId": {
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "badmintonScoreboardSessions": {
+      "$sessionId": {
+        ".read": "auth != null && data.child('userId').val() == auth.uid",
+        ".write": "auth != null && (!data.exists() && newData.child('userId').val() == auth.uid || data.child('userId').val() == auth.uid)"
+      }
+    },
+    "userBadmintonScoreboardSessions": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$sessionId": {
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "userBadmintonScoreboardActive": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "basketballScoreboardLobbies": {
+      "$sessionId": {
+        ".read": "auth != null",
+        ".write": "auth != null && (!data.exists() || data.child('hostId').val() == auth.uid)"
+      }
+    },
+    "userBasketballScoreboardLobbies": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        "$sessionId": {
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      }
+    },
+    "basketballScoreboardInvites": {
+      "$recipientId": {
+        ".read": "auth != null && auth.uid == $recipientId",
+        "$sessionId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "Carousels": {
+      "community": {
+        ".read": "auth != null",
+        ".write": "auth != null && (root.child('cmsAdmins').child(auth.uid).val() == true || !root.child('cmsAdmins').hasChildren())",
+        "$slideId": {
+          ".validate": "newData.hasChildren(['imageUrl', 'top_color']) && newData.child('imageUrl').isString() && newData.child('top_color').isString() && (!newData.hasChild('linkUrl') || newData.child('linkUrl').isString())"
+        }
+      }
+    },
+    "ongis_sports_scoring": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('cmsAdmins').child(auth.uid).val() == true",
+      "$sportKey": {
+        ".validate": "newData.isBoolean()"
+      }
+    }
+  }
+}
