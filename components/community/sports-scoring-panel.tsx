@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   disableAllSportScoring,
@@ -10,15 +10,18 @@ import {
   setSportScoringImageUrl,
 } from "@/lib/rtdb-sports-scoring-api";
 import {
+  filterSportScoringDefinitions,
   SPORT_SCORING_DEFINITIONS,
+  SPORT_SCORING_MORE_GROUP,
   type SportScoringKey,
   type SportScoringState,
 } from "@/lib/sports-scoring-schema";
 import { SportScoringImageUpload } from "@/components/community/sport-scoring-image-upload";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -27,6 +30,24 @@ export function SportsScoringPanel() {
   const [sports, setSports] = useState<SportScoringState | null>(null);
   const [saving, setSaving] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredDefinitions = useMemo(
+    () => filterSportScoringDefinitions(searchQuery),
+    [searchQuery],
+  );
+
+  const groups = useMemo(() => {
+    const seen = new Set<string>();
+    const ordered: string[] = [];
+    for (const def of filteredDefinitions) {
+      if (!seen.has(def.group)) {
+        seen.add(def.group);
+        ordered.push(def.group);
+      }
+    }
+    return ordered;
+  }, [filteredDefinitions]);
 
   useEffect(() => {
     void (async () => {
@@ -41,10 +62,6 @@ export function SportsScoringPanel() {
       }
     })();
   }, []);
-
-  const groups = Array.from(
-    new Set(SPORT_SCORING_DEFINITIONS.map((d) => d.group)),
-  );
 
   async function toggle(key: SportScoringKey, enabled: boolean) {
     setSaving(true);
@@ -164,13 +181,57 @@ export function SportsScoringPanel() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            <Input
+              type="search"
+              placeholder="Search sports by name or key…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9"
+              aria-label="Search sports"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Clear search"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+
+          {filteredDefinitions.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              No sports match &ldquo;{searchQuery}&rdquo;.
+            </p>
+          ) : null}
+
           {groups.map((group) => (
             <div key={group} className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                {group}
-              </p>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {group}
+                </p>
+                {group === SPORT_SCORING_MORE_GROUP ? (
+                  <p className="text-xs text-muted-foreground">
+                    {
+                      filteredDefinitions.filter((d) => d.group === group)
+                        .length
+                    }{" "}
+                    of{" "}
+                    {
+                      SPORT_SCORING_DEFINITIONS.filter(
+                        (d) => d.group === group,
+                      ).length
+                    }
+                  </p>
+                ) : null}
+              </div>
               <div className="grid gap-4 lg:grid-cols-2">
-                {SPORT_SCORING_DEFINITIONS.filter((d) => d.group === group).map(
+                {filteredDefinitions.filter((d) => d.group === group).map(
                   (def) => (
                     <div
                       key={def.key}

@@ -18,7 +18,18 @@ export type SportScoringKey =
   | "volleyball"
   | "cricket"
   | "golf"
-  | "table_tennis";
+  | "table_tennis"
+  | "bowling"
+  | "combat_sports"
+  | "running"
+  | "swimming"
+  | "esports"
+  | "gokarting"
+  | "gym"
+  | "yoga";
+
+/** UI group for secondary / explore-more sports in the app */
+export const SPORT_SCORING_MORE_GROUP = "More sports";
 
 export type SportScoringEntry = {
   enabled: boolean;
@@ -40,12 +51,33 @@ export const SPORT_SCORING_DEFINITIONS: {
   { key: "soccer", label: "Soccer", group: "Featured" },
   { key: "badminton", label: "Badminton", group: "Featured" },
   { key: "pickleball", label: "Pickleball", group: "Featured" },
-  { key: "tennis", label: "Tennis", group: "Explore more" },
-  { key: "volleyball", label: "Volleyball", group: "Explore more" },
-  { key: "cricket", label: "Cricket", group: "Explore more" },
-  { key: "golf", label: "Golf", group: "Explore more" },
-  { key: "table_tennis", label: "Table Tennis", group: "Explore more" },
+  { key: "tennis", label: "Tennis", group: SPORT_SCORING_MORE_GROUP },
+  { key: "volleyball", label: "Volleyball", group: SPORT_SCORING_MORE_GROUP },
+  { key: "cricket", label: "Cricket", group: SPORT_SCORING_MORE_GROUP },
+  { key: "golf", label: "Golf", group: SPORT_SCORING_MORE_GROUP },
+  { key: "table_tennis", label: "Table Tennis", group: SPORT_SCORING_MORE_GROUP },
+  { key: "bowling", label: "Bowling", group: SPORT_SCORING_MORE_GROUP },
+  { key: "combat_sports", label: "Combat Sports", group: SPORT_SCORING_MORE_GROUP },
+  { key: "running", label: "Running", group: SPORT_SCORING_MORE_GROUP },
+  { key: "swimming", label: "Swimming", group: SPORT_SCORING_MORE_GROUP },
+  { key: "esports", label: "Esports", group: SPORT_SCORING_MORE_GROUP },
+  { key: "gokarting", label: "Go-Karting", group: SPORT_SCORING_MORE_GROUP },
+  { key: "gym", label: "Gym", group: SPORT_SCORING_MORE_GROUP },
+  { key: "yoga", label: "Yoga", group: SPORT_SCORING_MORE_GROUP },
 ];
+
+export function filterSportScoringDefinitions(
+  query: string,
+): typeof SPORT_SCORING_DEFINITIONS {
+  const q = query.trim().toLowerCase();
+  if (!q) return SPORT_SCORING_DEFINITIONS;
+  return SPORT_SCORING_DEFINITIONS.filter(
+    (d) =>
+      d.label.toLowerCase().includes(q) ||
+      d.key.toLowerCase().includes(q) ||
+      d.key.replace(/_/g, " ").includes(q),
+  );
+}
 
 export const DEFAULT_SPORT_SCORING_ENTRY: SportScoringEntry = {
   enabled: false,
