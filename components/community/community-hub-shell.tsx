@@ -5,12 +5,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCommunityCarouselSlides } from "@/lib/storage-community-carousels";
 import { cn } from "@/lib/utils";
-import { Bell, ChevronRight, Images, LayoutGrid, Plus, Trophy } from "lucide-react";
+import { Bell, ChevronRight, Flag, Images, LayoutGrid, Plus, ScrollText, Trophy } from "lucide-react";
 
 const NAV = [
   { href: "/community/carousels", label: "All Slides", icon: LayoutGrid },
   { href: "/community/carousels/add", label: "Add Slide", icon: Plus },
   { href: "/community/scoring", label: "Sport scoring", icon: Trophy },
+  { href: "/community/onboarding/fandoms", label: "Fandoms", icon: Flag },
+  { href: "/community/onboarding/content", label: "Onboarding Qs", icon: ScrollText },
   { href: "/community/notifications", label: "Push", icon: Bell },
 ] as const;
 

@@ -13,6 +13,8 @@ import {
   Images,
   Trophy,
   Bell,
+  Flag,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +44,18 @@ export function Sidebar({ onLogout }: SidebarProps) {
       href: "/community/notifications",
       label: "Push",
       icon: Bell,
+    },
+    {
+      href: "/community/onboarding/fandoms",
+      label: "Fandoms",
+      icon: Flag,
+      matchPrefix: true,
+    },
+    {
+      href: "/community/onboarding/content",
+      label: "Onboarding Qs",
+      icon: ScrollText,
+      matchPrefix: true,
     },
     { href: "/settings", label: "Settings", icon: Settings },
   ];

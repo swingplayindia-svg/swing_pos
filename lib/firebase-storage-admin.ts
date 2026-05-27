@@ -63,3 +63,37 @@ export async function uploadSportScoringImageAdmin(
 
   return firebaseDownloadUrl(bucket.name, objectPath, downloadToken);
 }
+
+export async function uploadOnboardingFandomImageAdmin(
+  file: File,
+  fandomId: string,
+): Promise<string> {
+  const contentType = file.type || "application/octet-stream";
+  if (!ALLOWED_TYPES.has(contentType)) {
+    throw new Error("Please upload a JPEG, PNG, or WebP image.");
+  }
+  if (file.size > MAX_BYTES) {
+    throw new Error("Image must be 5 MB or smaller.");
+  }
+
+  const ext = extensionFor(contentType, file.name);
+  const objectPath = `onboarding/fandoms/${fandomId}/${Date.now()}.${ext}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const downloadToken = randomUUID();
+  const bucket = getAdminBucket();
+
+  await bucket.file(objectPath).save(buffer, {
+    resumable: false,
+    metadata: {
+      contentType,
+      cacheControl: "public, max-age=31536000, immutable",
+      metadata: {
+        firebaseStorageDownloadTokens: downloadToken,
+        uploadedAt: new Date().toISOString(),
+        fandomId,
+      },
+    },
+  });
+
+  return firebaseDownloadUrl(bucket.name, objectPath, downloadToken);
+}
