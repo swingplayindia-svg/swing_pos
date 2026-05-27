@@ -10,7 +10,7 @@ import { Bell, ChevronRight, Flag, Images, LayoutGrid, Plus, ScrollText, Trophy 
 const NAV = [
   { href: "/community/carousels", label: "All Slides", icon: LayoutGrid },
   { href: "/community/carousels/add", label: "Add Slide", icon: Plus },
-  { href: "/community/scoring", label: "Sport scoring", icon: Trophy },
+  { href: "/community/scoring", label: "Sports Listing", icon: Trophy },
   { href: "/community/onboarding/fandoms", label: "Fandoms", icon: Flag },
   { href: "/community/onboarding/content", label: "Onboarding Qs", icon: ScrollText },
   { href: "/community/notifications", label: "Push", icon: Bell },
